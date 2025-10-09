@@ -1,0 +1,3 @@
+/* Minimal styling for plugin UI */
+#inat-observations-root { padding: 1rem; border: 1px solid #eee; background: #fff; }
+.inat-filters { margin-bottom: 1rem; }

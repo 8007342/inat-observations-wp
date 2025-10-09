@@ -1,0 +1,17 @@
+# Node, PHP vendor etc
+/node_modules/
+/vendor/
+*.log
+*.cache
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local env / secrets
+.env
+wp-content/uploads/
+wp-content/upgrade/
+wp-content/plugins/inat-observations-wp/.env
+wp-content/plugins/inat-observations-wp/cache/
+wp-content/plugins/inat-observations-wp/*.sql
