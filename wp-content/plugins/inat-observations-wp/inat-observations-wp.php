@@ -1,10 +1,10 @@
 <?php
     /**
      * Plugin Name: inat-observations-wp
-     * Plugin URI:  https://example.org/
+     * Plugin URI:  https://github.com/8007342/inat-observations-wp
      * Description: Fetch, cache, and display iNaturalist observations with metadata filtering.
      * Version:     0.1.0
-     * Author:      Your Name
+     * Author:      Ayahuitl Tlatoani
      * License:     GPLv2 or later
      * Text Domain: inat-observations-wp
      */

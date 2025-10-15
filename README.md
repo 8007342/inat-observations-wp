@@ -37,5 +37,3 @@ Keep your iNaturalist API token out of source control. Use `.env` or WP options 
 — Chatty for the Tlatoāni
 May your fungi photos always focus.
 ```
-"# inat-observations-wp" 
-"# inat-observations-wp" 
