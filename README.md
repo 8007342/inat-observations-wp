@@ -11,19 +11,25 @@ This project is a WordPress plugin skeleton named `inat-observations-wp`. It fet
 - Offer a shortcode and a REST endpoint for flexible embedding.
 
 **Contents**
-- `docker-compose.yml` : disposable WordPress + MySQL dev environment using Docker.
-- `run.sh` : bring up the environment.
-- `clean.sh` : tear down and remove persistent state for a clean start.
-- `wp-content/plugins/inat-observations-wp/` : plugin skeleton.
-- `.gitignore` : sensitive files and transient outputs.
+- [docker-compose.yml](/docker-compose.yml) : Disposable WordPress + MySQL dev environment using Docker. This image
+    mounts the latest WordPress and MySQL docker images and launches a local dev environment
+    ready for development.
+- [/wp-content/plugins/inat-observations-wp](/wp-content/plugins/inat-observations-wp) : The actual plugin contents to match Wordpress nesting but only the deepest directory [inat-observations-wp](/wp-content/plugins/inat-observations-wp) is necessary; notice how it's mapped to `/var/www/html/wp-content/plugins/inat-observations-wp` in [docker-compose.yml](/docker-compose.yml).
+- `.gitignore` : Ignore transient /tmp files and .env files used by the docker images.
 
 **Development workflow**
-1. Install Docker and Docker Compose on your WSL environment.
-2. From the project root run `./run.sh`.
-3. Visit `http://localhost:8080` and finish WordPress install.
-4. Copy the plugin folder into `wp-content/plugins/` (this repo already mounts it).
-5. Activate plugin from WP Admin -> Plugins.
-6. Configure API token via a `.env` file or in plugin settings once implemented.
+- Install Docker as appropriate.
+- From [VS Code](https://code.visualstudio.com/) launch the dev environment by opening the
+    file [docker-compose.yml](/docker-compose.yml) and `compose up/restart` as appropriate.
+- Visit [localhost:8080](http://localhost:8080) to finish WordPress install the first time; and
+    [/wp-admin](http://localhost:8080/wp-admin) afterwards for the Wordpress dashboard.
+- Activate the plugin from [WP Admin/Plugins](http://localhost:8080/wp-admin/plugins.php).
+
+**Debug docker instances `wordpress` and `mysql`**
+- `docker logs -f wordpress` on a terminal for WordPress output. Debug statements from the
+        plugin development should show up here.
+- `docker logs -f mysql` on a terminal for mysql output. Database logs are not controled by Wordpress.
+
 
 **Security note**
 Keep your iNaturalist API token out of source control. Use `.env` or WP options stored with appropriate capabilities.
