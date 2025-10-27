@@ -16,7 +16,7 @@ services:
       - ./wp-content/plugins/inat-observations-wp:/var/www/html/wp-content/plugins/inat-observations-wp
   db:
     container_name: mysql
-    image: mysql:8.0
+    image: mysql:latest
     environment:
       MYSQL_DATABASE: wordpress
       MYSQL_USER: wordpress
