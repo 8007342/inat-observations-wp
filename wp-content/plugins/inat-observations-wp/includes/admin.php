@@ -114,7 +114,9 @@
      * Creates: Settings submenu item "iNat Observations"
      */
     add_action('admin_menu', function () {
-        error_log('[iNat Observations] Registering admin menu page');
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[iNat Observations] Registering admin menu page');
+        }
 
         // Add submenu page under Settings
         // Parameters: parent_slug, page_title, menu_title, capability, menu_slug, function
@@ -173,16 +175,17 @@
      * - Escape all output with esc_html/esc_attr
      */
     function inat_obs_settings_page() {
-        $current_user = wp_get_current_user();
-        error_log('[iNat Observations] Settings page accessed by user: ' . $current_user->user_login);
-
         // Verify user has required capability to access this page
         if (!current_user_can('manage_options')) {
-            error_log('[iNat Observations] Access denied - user lacks manage_options capability');
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('[iNat Observations] Access denied - user lacks manage_options capability');
+            }
             return;
         }
 
-        error_log('[iNat Observations] Rendering settings page');
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[iNat Observations] Rendering settings page');
+        }
 
         // Get current configuration values for display
         $current_project = getenv('INAT_PROJECT_SLUG') ?: '';

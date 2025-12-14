@@ -129,7 +129,9 @@
      * Hooks into: rest_api_init (WordPress core)
      */
     add_action('rest_api_init', function () {
-        error_log('[iNat Observations] Registering REST API routes');
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[iNat Observations] Registering REST API routes');
+        }
 
         // Register the main observations endpoint
         register_rest_route('inat/v1', '/observations', [
@@ -172,13 +174,17 @@
      * - Support field-based filtering
      */
     function inat_obs_rest_get_observations($request) {
-        error_log('[iNat Observations] REST API endpoint /inat/v1/observations called');
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[iNat Observations] REST API endpoint /inat/v1/observations called');
+        }
 
         // Extract query parameters from the REST request
         // These would be used to pass to inat_obs_fetch_observations()
         // TODO: Validate and use these parameters
         $args = $request->get_params();
-        error_log('[iNat Observations] REST API request parameters: ' . json_encode($args));
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[iNat Observations] REST API request parameters: ' . wp_json_encode($args));
+        }
 
         // Fetch observation data from iNaturalist API with caching
         // TODO: Consider returning database results instead for better performance
@@ -186,17 +192,21 @@
 
         // Check if API fetch succeeded or failed
         if (is_wp_error($data)) {
-            error_log('[iNat Observations] REST API request failed: ' . $data->get_error_message());
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('[iNat Observations] REST API request failed');
+            }
             // Return error in WordPress REST format with appropriate HTTP status
             return new WP_Error(
                 'inat_api_error',
-                $data->get_error_message(),
+                esc_html__('Unable to fetch observations. Please try again later.', 'inat-observations-wp'),
                 ['status' => 500]
             );
         }
 
         // Convert response to REST format and return to client
         // rest_ensure_response handles JSON encoding and proper headers
-        error_log('[iNat Observations] REST API request successful, returning response');
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[iNat Observations] REST API request successful, returning response');
+        }
         return rest_ensure_response($data);
     }

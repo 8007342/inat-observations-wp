@@ -57,7 +57,9 @@
     // Exit immediately if accessed directly (security check)
     if (!defined('ABSPATH')) exit;
 
-    error_log('[iNat Observations] Loading plugin components...');
+    if (defined('WP_DEBUG') && WP_DEBUG) {
+        error_log('[iNat Observations] Loading plugin components...');
+    }
 
     // Load all plugin modules in dependency order
     // Each module is conditionally required to prevent conflicts
@@ -67,7 +69,9 @@
     require_once plugin_dir_path(__DIR__) . 'includes/rest.php';
     require_once plugin_dir_path(__DIR__) . 'includes/admin.php';
 
-    error_log('[iNat Observations] All components loaded');
+    if (defined('WP_DEBUG') && WP_DEBUG) {
+        error_log('[iNat Observations] All components loaded');
+    }
 
     // Activation hooks
     register_activation_hook(plugin_dir_path(__DIR__) . 'inat-observations-wp.php', 'inat_obs_activate');
