@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.5/phpunit.xsd"
+    bootstrap="tests/bootstrap.php"
+    colors="true"
+    verbose="true"
+    stopOnFailure="false"
+    beStrictAboutOutputDuringTests="true"
+    beStrictAboutTodoAnnotatedTests="true"
+    failOnRisky="true"
+    failOnWarning="true">
+
+    <!-- Test Suites -->
+    <testsuites>
+        <testsuite name="Unit Tests">
+            <directory>tests/unit</directory>
+        </testsuite>
+        <testsuite name="Integration Tests">
+            <directory>tests/integration</directory>
+        </testsuite>
+    </testsuites>
+
+    <!-- Code Coverage Configuration -->
+    <coverage processUncoveredFiles="true">
+        <include>
+            <directory suffix=".php">includes</directory>
+        </include>
+        <exclude>
+            <directory>vendor</directory>
+            <directory>tests</directory>
+            <file>includes/admin.php</file>
+        </exclude>
+        <report>
+            <html outputDirectory="tests/coverage/html"/>
+            <text outputFile="php://stdout" showUncoveredFiles="true"/>
+            <clover outputFile="tests/coverage/clover.xml"/>
+        </report>
+    </coverage>
+
+    <!-- PHP Configuration -->
+    <php>
+        <ini name="display_errors" value="1"/>
+        <ini name="error_reporting" value="-1"/>
+        <ini name="memory_limit" value="256M"/>
+
+        <!-- WordPress Test Configuration -->
+        <env name="WP_TESTS_DIR" value="/tmp/wordpress-tests-lib"/>
+        <env name="WP_TEST_DB_NAME" value="wordpress_test"/>
+        <env name="WP_TEST_DB_USER" value="wordpress"/>
+        <env name="WP_TEST_DB_PASSWORD" value="wordpress"/>
+        <env name="WP_TEST_DB_HOST" value="mysql"/>
+
+        <!-- Plugin Configuration for Tests -->
+        <env name="INAT_PROJECT_SLUG" value="test-project-slug"/>
+        <env name="INAT_API_TOKEN" value="test_api_token_here"/>
+        <env name="CACHE_LIFETIME" value="3600"/>
+    </php>
+
+    <!-- Logging Configuration -->
+    <logging>
+        <testdoxHtml outputFile="tests/coverage/testdox.html"/>
+        <testdoxText outputFile="tests/coverage/testdox.txt"/>
+        <junit outputFile="tests/coverage/junit.xml"/>
+    </logging>
+</phpunit>

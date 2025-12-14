@@ -1,0 +1,44 @@
+{
+    "name": "inat/observations-wp",
+    "description": "WordPress plugin for displaying iNaturalist observations",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+            "name": "iNat Observations WP Contributors",
+            "email": "contributors@example.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.4"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5",
+        "yoast/phpunit-polyfills": "^1.0",
+        "wp-coding-standards/wpcs": "^2.3",
+        "dealerdirect/phpcodesniffer-composer-installer": "^0.7",
+        "phpcompatibility/phpcompatibility-wp": "^2.1"
+    },
+    "autoload-dev": {
+        "classmap": [
+            "tests/"
+        ]
+    },
+    "scripts": {
+        "test": "phpunit",
+        "test:unit": "phpunit --testsuite='Unit Tests'",
+        "test:integration": "phpunit --testsuite='Integration Tests'",
+        "test:coverage": "phpunit --coverage-html tests/coverage/html --coverage-text",
+        "test:coverage:clover": "phpunit --coverage-clover tests/coverage/clover.xml",
+        "lint": "phpcs --standard=WordPress includes/ --extensions=php",
+        "lint:fix": "phpcbf --standard=WordPress includes/ --extensions=php",
+        "setup:test-db": "bash scripts/setup-test-db.sh"
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        },
+        "optimize-autoloader": true,
+        "sort-packages": true
+    }
+}
