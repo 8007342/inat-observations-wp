@@ -55,7 +55,8 @@
         fields: [],
         currentFilter: '',
         isLoading: false,
-        hasError: false
+        hasError: false,
+        skeletonCount: 6 // Number of skeleton cards to show during loading
     };
 
     /**
@@ -104,9 +105,14 @@
         state.currentFilter = event.target.value;
         renderObservations();
 
-        // Announce filter change to screen readers
+        // Announce filter change to screen readers with result count
+        var filtered = state.currentFilter ?
+            filterByField(state.observations, state.currentFilter) :
+            state.observations;
         var filterName = state.currentFilter || config.i18n.allFields;
-        announceStatus('Filtering by: ' + filterName);
+        var message = 'Filtering by: ' + filterName + '. ' + filtered.length + ' ' +
+            (filtered.length === 1 ? 'observation' : 'observations') + ' found.';
+        announceStatus(message);
     }
 
     /**
@@ -185,6 +191,9 @@
         if (elements.list) {
             elements.list.setAttribute('aria-busy', 'true');
         }
+
+        // Render skeleton loading state for better perceived performance
+        renderSkeletonLoading();
 
         // Announce loading state
         announceStatus(config.i18n.loading);
@@ -362,19 +371,23 @@
         var date = formatDate(obs.observed_on);
         var imageUrl = getObservationImage(obs);
         var observationUrl = 'https://www.inaturalist.org/observations/' + obs.id;
+        var uniqueId = 'obs-' + obs.id;
 
-        var html = '<li class="inat-observation-card" aria-labelledby="obs-title-' + obs.id + '">';
+        var html = '<li class="inat-observation-card" aria-labelledby="' + uniqueId + '-title">';
 
         // Image container
         html += '<div class="inat-observation-image-container">';
         if (imageUrl) {
+            // Using data-loading attribute for CSS transition and onerror for broken images
             html += '<img class="inat-observation-image" ' +
                 'src="' + escapeHtml(imageUrl) + '" ' +
-                'alt="Photo of ' + escapeHtml(speciesName) + '" ' +
-                'loading="lazy">';
+                'alt="Photo of ' + escapeHtml(speciesName) + ' observed at ' + escapeHtml(location) + '" ' +
+                'loading="lazy" ' +
+                'onerror="this.parentElement.innerHTML=\'<div class=\\\'inat-observation-no-image\\\' aria-hidden=\\\'true\\\'><span>Image unavailable</span></div>\'">';
         } else {
-            html += '<div class="inat-observation-no-image" aria-hidden="true">' +
-                '<span>No photo available</span>' +
+            html += '<div class="inat-observation-no-image">' +
+                '<span aria-hidden="true">No photo</span>' +
+                '<span class="screen-reader-text">No photo available for this observation</span>' +
                 '</div>';
         }
         html += '</div>';
@@ -383,40 +396,45 @@
         html += '<div class="inat-observation-content">';
 
         // Species name as heading with link
-        html += '<h3 class="inat-observation-species" id="obs-title-' + obs.id + '">';
+        html += '<h3 class="inat-observation-species" id="' + uniqueId + '-title">';
         html += '<a href="' + escapeHtml(observationUrl) + '" ' +
             'class="inat-observation-species-link" ' +
             'target="_blank" ' +
-            'rel="noopener noreferrer">' +
+            'rel="noopener noreferrer" ' +
+            'aria-describedby="' + uniqueId + '-meta">' +
             escapeHtml(speciesName) +
             '<span class="screen-reader-text"> (opens in new tab)</span>' +
             '</a>';
         html += '</h3>';
 
-        // Meta information
-        html += '<div class="inat-observation-meta">';
+        // Meta information with ID for aria-describedby
+        html += '<div class="inat-observation-meta" id="' + uniqueId + '-meta">';
         html += '<p class="inat-observation-location">' +
             '<span aria-hidden="true">&#128205;</span> ' +
-            '<span>' + escapeHtml(location) + '</span>' +
+            '<span>Location: ' + escapeHtml(location) + '</span>' +
             '</p>';
         html += '<p class="inat-observation-date">' +
             '<span aria-hidden="true">&#128197;</span> ' +
+            '<span>Observed: </span>' +
             '<time datetime="' + escapeHtml(obs.observed_on || '') + '">' + escapeHtml(date) + '</time>' +
             '</p>';
         html += '</div>';
 
         // Observation fields (if any)
         if (obs.observation_field_values && obs.observation_field_values.length > 0) {
-            html += '<div class="inat-observation-fields" aria-label="Observation fields">';
+            html += '<div class="inat-observation-fields" role="list" aria-label="Observation field values">';
             obs.observation_field_values.slice(0, 3).forEach(function (field) {
                 var fieldName = field.observation_field ? field.observation_field.name : 'Field';
                 var fieldValue = field.value || '';
-                html += '<span class="inat-field-tag" title="' + escapeHtml(fieldName) + ': ' + escapeHtml(fieldValue) + '">' +
+                // Using role="listitem" and aria-label for better screen reader context
+                html += '<span class="inat-field-tag" role="listitem" aria-label="' + escapeHtml(fieldName) + ': ' + escapeHtml(fieldValue) + '">' +
                     escapeHtml(fieldValue) +
                     '</span>';
             });
             if (obs.observation_field_values.length > 3) {
-                html += '<span class="inat-field-tag">+' + (obs.observation_field_values.length - 3) + ' more</span>';
+                var remaining = obs.observation_field_values.length - 3;
+                html += '<span class="inat-field-tag" role="listitem" aria-label="' + remaining + ' additional fields">' +
+                    '+' + remaining + ' more</span>';
             }
             html += '</div>';
         }
@@ -425,6 +443,34 @@
         html += '</li>';
 
         return html;
+    }
+
+    /**
+     * Render skeleton loading cards
+     * Provides visual feedback during data fetch
+     */
+    function renderSkeletonLoading() {
+        if (!elements.list) return;
+
+        var html = '<div class="inat-skeleton-loading" role="status" aria-label="Loading observations">';
+        html += '<ul class="inat-observations-grid" role="list" aria-hidden="true">';
+
+        for (var i = 0; i < state.skeletonCount; i++) {
+            html += '<li class="inat-skeleton-card">';
+            html += '<div class="inat-skeleton-image inat-skeleton"></div>';
+            html += '<div class="inat-skeleton-content">';
+            html += '<div class="inat-skeleton-title inat-skeleton"></div>';
+            html += '<div class="inat-skeleton-text inat-skeleton"></div>';
+            html += '<div class="inat-skeleton-text-short inat-skeleton"></div>';
+            html += '</div>';
+            html += '</li>';
+        }
+
+        html += '</ul>';
+        html += '<p class="screen-reader-text">' + escapeHtml(config.i18n.loading) + '</p>';
+        html += '</div>';
+
+        elements.list.innerHTML = html;
     }
 
     /**
@@ -449,12 +495,13 @@
      * @param {string} message - Error message to display
      */
     function renderError(message) {
-        var html = '<div class="inat-message inat-message-error" role="alert">' +
+        var errorId = 'inat-error-' + Date.now();
+        var html = '<div class="inat-message inat-message-error" role="alert" aria-labelledby="' + errorId + '-title" aria-describedby="' + errorId + '-help">' +
             '<span class="inat-message-icon" aria-hidden="true">&#9888;</span>' +
-            '<p class="inat-message-text">' + escapeHtml(message) + '</p>' +
-            '<p class="inat-message-help">If the problem persists, please contact the site administrator.</p>' +
-            '<button type="button" class="inat-retry-button" aria-label="Retry loading observations">' +
-            'Try Again' +
+            '<p class="inat-message-text" id="' + errorId + '-title">' + escapeHtml(message) + '</p>' +
+            '<p class="inat-message-help" id="' + errorId + '-help">If the problem persists, please contact the site administrator.</p>' +
+            '<button type="button" class="inat-retry-button">' +
+            '<span aria-hidden="true">&#8635; </span>Try Again' +
             '</button>' +
             '</div>';
 
@@ -465,6 +512,13 @@
         if (retryButton) {
             retryButton.addEventListener('click', function () {
                 fetchObservations();
+            });
+            // Also support Enter and Space key for accessibility
+            retryButton.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    fetchObservations();
+                }
             });
             // Focus the retry button for keyboard users
             retryButton.focus();

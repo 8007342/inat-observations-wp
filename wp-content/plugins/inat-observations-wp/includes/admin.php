@@ -201,7 +201,7 @@
             </div>
 
             <!-- Notice about current implementation status -->
-            <div class="notice notice-info" role="alert" aria-live="polite">
+            <div class="notice notice-info is-dismissible" role="status" aria-label="<?php esc_attr_e('Configuration notice', 'inat-observations-wp'); ?>">
                 <p>
                     <strong><?php esc_html_e('Note:', 'inat-observations-wp'); ?></strong>
                     <?php esc_html_e('The settings form is not yet implemented. Configuration is currently managed through environment variables.', 'inat-observations-wp'); ?>
@@ -212,47 +212,53 @@
             <section aria-labelledby="inat-config-heading">
                 <h2 id="inat-config-heading"><?php esc_html_e('Current Configuration', 'inat-observations-wp'); ?></h2>
 
-                <table class="form-table" role="presentation">
+                <table class="form-table" role="presentation" aria-describedby="inat-config-heading">
                     <tbody>
                         <tr>
                             <th scope="row">
-                                <label><?php esc_html_e('Project Slug', 'inat-observations-wp'); ?></label>
+                                <?php esc_html_e('Project Slug', 'inat-observations-wp'); ?>
                             </th>
                             <td>
                                 <?php if ($current_project) : ?>
-                                    <code><?php echo esc_html($current_project); ?></code>
+                                    <code aria-label="<?php esc_attr_e('Current project slug value', 'inat-observations-wp'); ?>"><?php echo esc_html($current_project); ?></code>
+                                    <span class="screen-reader-text"><?php esc_html_e('Project slug is configured as:', 'inat-observations-wp'); ?> <?php echo esc_html($current_project); ?></span>
                                 <?php else : ?>
-                                    <span class="description">
-                                        <?php esc_html_e('Not configured', 'inat-observations-wp'); ?>
+                                    <span class="description" style="color: #d63638;">
+                                        <span class="dashicons dashicons-warning" aria-hidden="true"></span>
+                                        <?php esc_html_e('Not configured - required for plugin to function', 'inat-observations-wp'); ?>
                                     </span>
                                 <?php endif; ?>
                             </td>
                         </tr>
                         <tr>
                             <th scope="row">
-                                <label><?php esc_html_e('API Token', 'inat-observations-wp'); ?></label>
+                                <?php esc_html_e('API Token', 'inat-observations-wp'); ?>
                             </th>
                             <td>
                                 <?php if ($has_api_token) : ?>
-                                    <span class="dashicons dashicons-yes-alt" aria-hidden="true" style="color: #46b450;"></span>
-                                    <span class="screen-reader-text"><?php esc_html_e('API token is configured', 'inat-observations-wp'); ?></span>
-                                    <?php esc_html_e('Configured', 'inat-observations-wp'); ?>
+                                    <span class="dashicons dashicons-yes-alt" aria-hidden="true" style="color: #00a32a;"></span>
+                                    <span><?php esc_html_e('Configured', 'inat-observations-wp'); ?></span>
+                                    <span class="screen-reader-text"><?php esc_html_e('API token is configured and active', 'inat-observations-wp'); ?></span>
                                 <?php else : ?>
-                                    <span class="dashicons dashicons-warning" aria-hidden="true" style="color: #f0b849;"></span>
-                                    <span class="screen-reader-text"><?php esc_html_e('API token is not configured', 'inat-observations-wp'); ?></span>
-                                    <?php esc_html_e('Not configured (optional)', 'inat-observations-wp'); ?>
+                                    <span class="dashicons dashicons-info" aria-hidden="true" style="color: #72aee6;"></span>
+                                    <span><?php esc_html_e('Not configured', 'inat-observations-wp'); ?></span>
+                                    <span class="description"> - <?php esc_html_e('optional, enables higher API rate limits', 'inat-observations-wp'); ?></span>
+                                    <span class="screen-reader-text"><?php esc_html_e('API token is not configured. This is optional but enables higher API rate limits.', 'inat-observations-wp'); ?></span>
                                 <?php endif; ?>
                             </td>
                         </tr>
                         <tr>
                             <th scope="row">
-                                <label><?php esc_html_e('Cache Lifetime', 'inat-observations-wp'); ?></label>
+                                <?php esc_html_e('Cache Lifetime', 'inat-observations-wp'); ?>
                             </th>
                             <td>
                                 <code><?php echo esc_html($current_cache_lifetime); ?></code>
-                                <?php esc_html_e('seconds', 'inat-observations-wp'); ?>
+                                <span><?php esc_html_e('seconds', 'inat-observations-wp'); ?></span>
                                 <span class="description">
-                                    (<?php echo esc_html(human_time_diff(0, intval($current_cache_lifetime))); ?>)
+                                    (<?php
+                                    /* translators: %s: human-readable time duration */
+                                    printf(esc_html__('approximately %s', 'inat-observations-wp'), esc_html(human_time_diff(0, intval($current_cache_lifetime))));
+                                    ?>)
                                 </span>
                             </td>
                         </tr>
@@ -266,22 +272,26 @@
 
                 <p><?php esc_html_e('To configure this plugin, create or edit the .env file in your WordPress root directory with the following variables:', 'inat-observations-wp'); ?></p>
 
-                <div class="code-block" style="background: #f5f5f5; padding: 1rem; border-left: 4px solid #0073aa; margin: 1rem 0;">
-                    <pre style="margin: 0; white-space: pre-wrap;" aria-label="<?php esc_attr_e('Environment variable configuration example', 'inat-observations-wp'); ?>"><code>INAT_PROJECT_SLUG=your-project-slug
+                <div class="code-block" style="background: #f6f7f7; padding: 1rem; border-left: 4px solid #2271b1; margin: 1rem 0; border-radius: 0 4px 4px 0;">
+                    <pre style="margin: 0; white-space: pre-wrap; font-family: Consolas, Monaco, monospace; font-size: 13px; line-height: 1.6;"><code aria-label="<?php esc_attr_e('Environment variable configuration example', 'inat-observations-wp'); ?>">INAT_PROJECT_SLUG=your-project-slug
 INAT_API_TOKEN=your-api-token-here
 CACHE_LIFETIME=3600</code></pre>
+                    <button type="button" class="button button-small" style="margin-top: 0.5rem;" onclick="navigator.clipboard.writeText('INAT_PROJECT_SLUG=your-project-slug\nINAT_API_TOKEN=your-api-token-here\nCACHE_LIFETIME=3600').then(function() { alert('<?php echo esc_js(__('Copied to clipboard!', 'inat-observations-wp')); ?>'); });" aria-label="<?php esc_attr_e('Copy configuration example to clipboard', 'inat-observations-wp'); ?>">
+                        <span class="dashicons dashicons-clipboard" aria-hidden="true" style="vertical-align: text-bottom;"></span>
+                        <?php esc_html_e('Copy to clipboard', 'inat-observations-wp'); ?>
+                    </button>
                 </div>
 
-                <h3><?php esc_html_e('Variable Descriptions', 'inat-observations-wp'); ?></h3>
-                <dl>
-                    <dt><strong>INAT_PROJECT_SLUG</strong></dt>
-                    <dd><?php esc_html_e('The unique identifier for your iNaturalist project. You can find this in the URL of your project page.', 'inat-observations-wp'); ?></dd>
+                <h3 id="inat-var-desc-heading"><?php esc_html_e('Variable Descriptions', 'inat-observations-wp'); ?></h3>
+                <dl aria-labelledby="inat-var-desc-heading" style="margin-left: 0;">
+                    <dt style="font-weight: 600; margin-top: 1em;"><code>INAT_PROJECT_SLUG</code> <span class="description" style="font-weight: normal; color: #d63638;">(<?php esc_html_e('required', 'inat-observations-wp'); ?>)</span></dt>
+                    <dd style="margin-left: 1em; margin-bottom: 0.5em;"><?php esc_html_e('The unique identifier for your iNaturalist project. You can find this in the URL of your project page (e.g., inaturalist.org/projects/your-project-slug).', 'inat-observations-wp'); ?></dd>
 
-                    <dt><strong>INAT_API_TOKEN</strong></dt>
-                    <dd><?php esc_html_e('Optional. An API token for higher rate limits. Generate one from your iNaturalist account settings.', 'inat-observations-wp'); ?></dd>
+                    <dt style="font-weight: 600; margin-top: 1em;"><code>INAT_API_TOKEN</code> <span class="description" style="font-weight: normal;">(<?php esc_html_e('optional', 'inat-observations-wp'); ?>)</span></dt>
+                    <dd style="margin-left: 1em; margin-bottom: 0.5em;"><?php esc_html_e('An API token for higher rate limits. Generate one from your iNaturalist account settings under Applications.', 'inat-observations-wp'); ?></dd>
 
-                    <dt><strong>CACHE_LIFETIME</strong></dt>
-                    <dd><?php esc_html_e('How long to cache API responses, in seconds. Default is 3600 (1 hour).', 'inat-observations-wp'); ?></dd>
+                    <dt style="font-weight: 600; margin-top: 1em;"><code>CACHE_LIFETIME</code> <span class="description" style="font-weight: normal;">(<?php esc_html_e('optional', 'inat-observations-wp'); ?>)</span></dt>
+                    <dd style="margin-left: 1em; margin-bottom: 0.5em;"><?php esc_html_e('How long to cache API responses, in seconds. Default is 3600 (1 hour). Lower values mean fresher data but more API requests.', 'inat-observations-wp'); ?></dd>
                 </dl>
             </section>
 
@@ -291,37 +301,53 @@ CACHE_LIFETIME=3600</code></pre>
 
                 <p><?php esc_html_e('Add the following shortcode to any page or post to display observations:', 'inat-observations-wp'); ?></p>
 
-                <div class="code-block" style="background: #f5f5f5; padding: 1rem; border-left: 4px solid #0073aa; margin: 1rem 0;">
-                    <code>[inat_observations]</code>
-                </div>
-
-                <h3><?php esc_html_e('Optional Attributes', 'inat-observations-wp'); ?></h3>
-                <table class="widefat" role="table">
+                <h3 id="inat-attrs-heading"><?php esc_html_e('Optional Attributes', 'inat-observations-wp'); ?></h3>
+                <table class="widefat striped" aria-labelledby="inat-attrs-heading">
                     <thead>
                         <tr>
-                            <th scope="col"><?php esc_html_e('Attribute', 'inat-observations-wp'); ?></th>
-                            <th scope="col"><?php esc_html_e('Description', 'inat-observations-wp'); ?></th>
-                            <th scope="col"><?php esc_html_e('Default', 'inat-observations-wp'); ?></th>
+                            <th scope="col" style="width: 20%;"><?php esc_html_e('Attribute', 'inat-observations-wp'); ?></th>
+                            <th scope="col" style="width: 55%;"><?php esc_html_e('Description', 'inat-observations-wp'); ?></th>
+                            <th scope="col" style="width: 25%;"><?php esc_html_e('Default', 'inat-observations-wp'); ?></th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td><code>project</code></td>
                             <td><?php esc_html_e('Override the project slug from environment variable', 'inat-observations-wp'); ?></td>
-                            <td><?php esc_html_e('INAT_PROJECT_SLUG env var', 'inat-observations-wp'); ?></td>
+                            <td><code>INAT_PROJECT_SLUG</code> <?php esc_html_e('env var', 'inat-observations-wp'); ?></td>
                         </tr>
                         <tr>
                             <td><code>per_page</code></td>
-                            <td><?php esc_html_e('Number of observations to display', 'inat-observations-wp'); ?></td>
-                            <td>50</td>
+                            <td><?php esc_html_e('Number of observations to display (1-200)', 'inat-observations-wp'); ?></td>
+                            <td><code>50</code></td>
                         </tr>
                     </tbody>
                 </table>
 
-                <h3><?php esc_html_e('Example', 'inat-observations-wp'); ?></h3>
-                <div class="code-block" style="background: #f5f5f5; padding: 1rem; border-left: 4px solid #0073aa; margin: 1rem 0;">
-                    <code>[inat_observations project="my-project" per_page="25"]</code>
+                <h3><?php esc_html_e('Examples', 'inat-observations-wp'); ?></h3>
+                <div class="code-block" style="background: #f6f7f7; padding: 1rem; border-left: 4px solid #2271b1; margin: 1rem 0; border-radius: 0 4px 4px 0;">
+                    <p style="margin: 0 0 0.5em 0;"><strong><?php esc_html_e('Basic usage:', 'inat-observations-wp'); ?></strong></p>
+                    <code style="display: block; margin-bottom: 1em;">[inat_observations]</code>
+
+                    <p style="margin: 0 0 0.5em 0;"><strong><?php esc_html_e('With custom project and page size:', 'inat-observations-wp'); ?></strong></p>
+                    <code style="display: block;">[inat_observations project="my-project" per_page="25"]</code>
                 </div>
+            </section>
+
+            <!-- Quick Test Section -->
+            <section aria-labelledby="inat-test-heading" style="margin-top: 2em; padding: 1em; background: #f6f7f7; border-radius: 4px;">
+                <h2 id="inat-test-heading"><?php esc_html_e('Quick Test', 'inat-observations-wp'); ?></h2>
+                <p><?php esc_html_e('Test if your configuration is working by creating a new page or post with the shortcode above.', 'inat-observations-wp'); ?></p>
+                <p>
+                    <a href="<?php echo esc_url(admin_url('post-new.php?post_type=page')); ?>" class="button button-primary">
+                        <?php esc_html_e('Create Test Page', 'inat-observations-wp'); ?>
+                    </a>
+                    <a href="https://api.inaturalist.org/v1/docs/" target="_blank" rel="noopener noreferrer" class="button" style="margin-left: 0.5em;">
+                        <?php esc_html_e('iNaturalist API Docs', 'inat-observations-wp'); ?>
+                        <span class="screen-reader-text"><?php esc_html_e('(opens in new tab)', 'inat-observations-wp'); ?></span>
+                        <span class="dashicons dashicons-external" aria-hidden="true" style="vertical-align: text-bottom;"></span>
+                    </a>
+                </p>
             </section>
         </div>
         <?php

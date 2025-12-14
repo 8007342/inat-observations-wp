@@ -1,3 +1,705 @@
-/* Minimal styling for plugin UI */
-#inat-observations-root { padding: 1rem; border: 1px solid #eee; background: #fff; }
-.inat-filters { margin-bottom: 1rem; }
+/**
+ * iNaturalist Observations WordPress Plugin
+ * Main Stylesheet
+ *
+ * Accessibility Standards:
+ * - WCAG 2.1 AA compliant
+ * - Minimum 4.5:1 contrast ratio for text
+ * - Minimum 3:1 contrast ratio for UI components
+ * - Visible focus indicators
+ * - Responsive design (mobile-first)
+ * - RTL language support via logical properties
+ * - Reduced motion support
+ * - High contrast mode support
+ */
+
+/* ==========================================================================
+   CSS Custom Properties (Design Tokens)
+   ========================================================================== */
+
+.inat-observations-widget {
+    /* Colors - Meeting WCAG 2.1 AA contrast requirements */
+    --inat-color-primary: #4a7c59;           /* Primary green - nature theme */
+    --inat-color-primary-dark: #3d6549;      /* Darker for hover states */
+    --inat-color-primary-light: #e8f0ea;     /* Light background tint */
+    --inat-color-text: #1a1a1a;              /* Near-black for body text - 16:1 contrast */
+    --inat-color-text-muted: #555555;        /* Muted text - 7:1 contrast on white */
+    --inat-color-background: #ffffff;
+    --inat-color-surface: #f8f9fa;           /* Slightly off-white for cards */
+    --inat-color-border: #6b7280;            /* Border color - 3.5:1 contrast */
+    --inat-color-border-light: #d1d5db;      /* Light border for subtle dividers */
+    --inat-color-focus: #0066cc;             /* Focus ring color - high visibility */
+    --inat-color-focus-ring: rgba(0, 102, 204, 0.4);
+    --inat-color-error: #b91c1c;             /* Error red - 5.9:1 contrast */
+    --inat-color-error-bg: #fef2f2;
+    --inat-color-success: #15803d;           /* Success green - 4.5:1 contrast */
+    --inat-color-success-bg: #f0fdf4;
+    --inat-color-warning: #a16207;           /* Warning - 4.5:1 contrast */
+    --inat-color-warning-bg: #fefce8;
+
+    /* Typography */
+    --inat-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    --inat-font-size-base: 1rem;
+    --inat-font-size-sm: 0.875rem;
+    --inat-font-size-lg: 1.125rem;
+    --inat-font-size-xl: 1.25rem;
+    --inat-line-height: 1.5;
+
+    /* Spacing (8dp grid system) */
+    --inat-space-xs: 0.25rem;   /* 4px */
+    --inat-space-sm: 0.5rem;    /* 8px */
+    --inat-space-md: 1rem;      /* 16px */
+    --inat-space-lg: 1.5rem;    /* 24px */
+    --inat-space-xl: 2rem;      /* 32px */
+
+    /* Borders */
+    --inat-border-radius: 4px;
+    --inat-border-width: 1px;
+
+    /* Shadows (Material Design elevation) */
+    --inat-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --inat-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --inat-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+
+    /* Transitions */
+    --inat-transition-fast: 150ms ease-in-out;
+    --inat-transition-normal: 200ms ease-in-out;
+
+    /* Focus ring */
+    --inat-focus-ring: 0 0 0 3px var(--inat-color-focus-ring);
+}
+
+/* High contrast mode overrides */
+@media (prefers-contrast: high) {
+    .inat-observations-widget {
+        --inat-color-border: #000000;
+        --inat-color-text: #000000;
+        --inat-color-focus: #000000;
+    }
+}
+
+/* Dark mode support (when theme supports it) */
+@media (prefers-color-scheme: dark) {
+    .inat-observations-widget.supports-dark-mode {
+        --inat-color-text: #f0f0f0;
+        --inat-color-text-muted: #b0b0b0;
+        --inat-color-background: #1a1a1a;
+        --inat-color-surface: #2d2d2d;
+        --inat-color-border: #555555;
+        --inat-color-border-light: #404040;
+    }
+}
+
+/* ==========================================================================
+   Screen Reader Only / Visually Hidden
+   ========================================================================== */
+
+.screen-reader-text {
+    border: 0;
+    clip: rect(1px, 1px, 1px, 1px);
+    clip-path: inset(50%);
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    padding: 0;
+    position: absolute;
+    width: 1px;
+    word-wrap: normal !important;
+}
+
+/* Allow focus on skip links for keyboard users */
+.screen-reader-text:focus,
+.inat-skip-link:focus {
+    background-color: var(--inat-color-background);
+    border-radius: var(--inat-border-radius);
+    box-shadow: var(--inat-shadow-lg);
+    clip: auto !important;
+    clip-path: none;
+    color: var(--inat-color-primary-dark);
+    display: block;
+    font-size: var(--inat-font-size-base);
+    font-weight: 600;
+    height: auto;
+    left: var(--inat-space-sm);
+    line-height: normal;
+    padding: var(--inat-space-md) var(--inat-space-lg);
+    text-decoration: none;
+    top: var(--inat-space-sm);
+    width: auto;
+    z-index: 100000;
+}
+
+/* ==========================================================================
+   Main Widget Container
+   ========================================================================== */
+
+.inat-observations-widget {
+    background-color: var(--inat-color-background);
+    border: var(--inat-border-width) solid var(--inat-color-border);
+    border-radius: var(--inat-border-radius);
+    box-shadow: var(--inat-shadow-sm);
+    color: var(--inat-color-text);
+    font-family: var(--inat-font-family);
+    font-size: var(--inat-font-size-base);
+    line-height: var(--inat-line-height);
+    margin-block-end: var(--inat-space-lg);
+    padding: var(--inat-space-md);
+}
+
+/* Responsive padding */
+@media (min-width: 768px) {
+    .inat-observations-widget {
+        padding: var(--inat-space-lg);
+    }
+}
+
+/* ==========================================================================
+   Filter Controls
+   ========================================================================== */
+
+.inat-filters {
+    align-items: flex-start;
+    display: flex;
+    flex-direction: column;
+    gap: var(--inat-space-sm);
+    margin-block-end: var(--inat-space-lg);
+    padding-block-end: var(--inat-space-md);
+    border-block-end: var(--inat-border-width) solid var(--inat-color-border-light);
+}
+
+@media (min-width: 480px) {
+    .inat-filters {
+        align-items: center;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: var(--inat-space-md);
+    }
+}
+
+.inat-filter-label {
+    color: var(--inat-color-text);
+    font-size: var(--inat-font-size-base);
+    font-weight: 600;
+}
+
+.inat-filter-select {
+    appearance: none;
+    background-color: var(--inat-color-background);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23555555' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-position: right var(--inat-space-sm) center;
+    background-repeat: no-repeat;
+    background-size: 12px;
+    border: var(--inat-border-width) solid var(--inat-color-border);
+    border-radius: var(--inat-border-radius);
+    color: var(--inat-color-text);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: var(--inat-font-size-base);
+    line-height: var(--inat-line-height);
+    min-height: 44px; /* Touch target size */
+    min-width: 200px;
+    padding: var(--inat-space-sm) var(--inat-space-xl) var(--inat-space-sm) var(--inat-space-sm);
+    transition: border-color var(--inat-transition-fast),
+                box-shadow var(--inat-transition-fast);
+    width: 100%;
+}
+
+@media (min-width: 480px) {
+    .inat-filter-select {
+        width: auto;
+    }
+}
+
+/* Select focus state */
+.inat-filter-select:focus {
+    border-color: var(--inat-color-focus);
+    box-shadow: var(--inat-focus-ring);
+    outline: none;
+}
+
+/* Select hover state */
+.inat-filter-select:hover:not(:focus) {
+    border-color: var(--inat-color-primary);
+}
+
+/* Select disabled state */
+.inat-filter-select:disabled {
+    background-color: var(--inat-color-surface);
+    color: var(--inat-color-text-muted);
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.inat-help-text {
+    color: var(--inat-color-text-muted);
+    font-size: var(--inat-font-size-sm);
+}
+
+/* ==========================================================================
+   Loading State
+   ========================================================================== */
+
+.inat-loading-message {
+    align-items: center;
+    color: var(--inat-color-text-muted);
+    display: flex;
+    font-size: var(--inat-font-size-base);
+    gap: var(--inat-space-sm);
+    justify-content: center;
+    padding: var(--inat-space-xl);
+    text-align: center;
+}
+
+/* CSS-only spinner - no additional dependencies */
+.inat-spinner {
+    animation: inat-spin 1s linear infinite;
+    border: 3px solid var(--inat-color-border-light);
+    border-radius: 50%;
+    border-top-color: var(--inat-color-primary);
+    display: inline-block;
+    height: 24px;
+    width: 24px;
+}
+
+@keyframes inat-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+    .inat-spinner {
+        animation: none;
+        border-top-color: var(--inat-color-primary);
+        opacity: 0.7;
+    }
+
+    .inat-observations-widget,
+    .inat-observations-widget * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Skeleton loading state (optional enhancement) */
+.inat-skeleton {
+    animation: inat-pulse 2s ease-in-out infinite;
+    background: linear-gradient(
+        90deg,
+        var(--inat-color-surface) 25%,
+        var(--inat-color-border-light) 50%,
+        var(--inat-color-surface) 75%
+    );
+    background-size: 200% 100%;
+    border-radius: var(--inat-border-radius);
+}
+
+@keyframes inat-pulse {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .inat-skeleton {
+        animation: none;
+        background: var(--inat-color-surface);
+    }
+}
+
+/* ==========================================================================
+   Observations List
+   ========================================================================== */
+
+.inat-observations-list {
+    min-height: 100px; /* Prevent layout shift */
+}
+
+/* Focus state for the list region when navigated to */
+.inat-observations-list:focus {
+    outline: 2px solid var(--inat-color-focus);
+    outline-offset: 2px;
+}
+
+/* Remove outline if focus came from mouse */
+.inat-observations-list:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* Observation cards list */
+.inat-observations-grid {
+    display: grid;
+    gap: var(--inat-space-md);
+    grid-template-columns: 1fr;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+@media (min-width: 600px) {
+    .inat-observations-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 1024px) {
+    .inat-observations-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Individual observation card */
+.inat-observation-card {
+    background-color: var(--inat-color-surface);
+    border: var(--inat-border-width) solid var(--inat-color-border-light);
+    border-radius: var(--inat-border-radius);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: box-shadow var(--inat-transition-normal),
+                transform var(--inat-transition-normal);
+}
+
+.inat-observation-card:hover {
+    box-shadow: var(--inat-shadow-md);
+}
+
+.inat-observation-card:focus-within {
+    box-shadow: var(--inat-focus-ring);
+    outline: 2px solid var(--inat-color-focus);
+    outline-offset: 2px;
+}
+
+/* Observation image */
+.inat-observation-image-container {
+    aspect-ratio: 4 / 3;
+    background-color: var(--inat-color-border-light);
+    overflow: hidden;
+    position: relative;
+}
+
+.inat-observation-image {
+    height: 100%;
+    object-fit: cover;
+    width: 100%;
+    /* Smooth fade-in when image loads */
+    opacity: 1;
+    transition: opacity var(--inat-transition-normal);
+}
+
+/* Image loading state */
+.inat-observation-image[data-loading="true"] {
+    opacity: 0;
+}
+
+/* Placeholder for missing images */
+.inat-observation-no-image {
+    align-items: center;
+    color: var(--inat-color-text-muted);
+    display: flex;
+    font-size: var(--inat-font-size-sm);
+    height: 100%;
+    justify-content: center;
+    text-align: center;
+}
+
+/* Observation content */
+.inat-observation-content {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    gap: var(--inat-space-xs);
+    padding: var(--inat-space-md);
+}
+
+.inat-observation-species {
+    color: var(--inat-color-text);
+    font-size: var(--inat-font-size-lg);
+    font-weight: 600;
+    line-height: 1.3;
+    margin: 0;
+}
+
+.inat-observation-species-link {
+    color: inherit;
+    text-decoration: none;
+}
+
+.inat-observation-species-link:hover,
+.inat-observation-species-link:focus {
+    color: var(--inat-color-primary);
+    text-decoration: underline;
+}
+
+.inat-observation-species-link:focus {
+    outline: 2px solid var(--inat-color-focus);
+    outline-offset: 2px;
+}
+
+.inat-observation-meta {
+    color: var(--inat-color-text-muted);
+    font-size: var(--inat-font-size-sm);
+}
+
+.inat-observation-location {
+    display: flex;
+    align-items: center;
+    gap: var(--inat-space-xs);
+}
+
+.inat-observation-date {
+    display: flex;
+    align-items: center;
+    gap: var(--inat-space-xs);
+}
+
+/* Observation field values */
+.inat-observation-fields {
+    border-top: var(--inat-border-width) solid var(--inat-color-border-light);
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--inat-space-xs);
+    margin-top: auto;
+    padding-top: var(--inat-space-sm);
+}
+
+.inat-field-tag {
+    background-color: var(--inat-color-primary-light);
+    border-radius: calc(var(--inat-border-radius) * 4);
+    color: var(--inat-color-primary-dark);
+    font-size: var(--inat-font-size-sm);
+    padding: var(--inat-space-xs) var(--inat-space-sm);
+    /* Ensure minimum touch target when tags are interactive */
+    min-height: 24px;
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Field tag focus state for keyboard users (when tags become interactive) */
+.inat-field-tag:focus {
+    outline: 2px solid var(--inat-color-focus);
+    outline-offset: 2px;
+}
+
+/* ==========================================================================
+   Error and Empty States
+   ========================================================================== */
+
+.inat-message {
+    border-radius: var(--inat-border-radius);
+    padding: var(--inat-space-md);
+    text-align: center;
+}
+
+.inat-message-error {
+    background-color: var(--inat-color-error-bg);
+    border: var(--inat-border-width) solid var(--inat-color-error);
+    color: var(--inat-color-error);
+}
+
+.inat-message-success {
+    background-color: var(--inat-color-success-bg);
+    border: var(--inat-border-width) solid var(--inat-color-success);
+    color: var(--inat-color-success);
+}
+
+.inat-message-warning {
+    background-color: var(--inat-color-warning-bg);
+    border: var(--inat-border-width) solid var(--inat-color-warning);
+    color: var(--inat-color-warning);
+}
+
+.inat-message-info {
+    background-color: var(--inat-color-primary-light);
+    border: var(--inat-border-width) solid var(--inat-color-primary);
+    color: var(--inat-color-primary-dark);
+}
+
+.inat-message-icon {
+    display: block;
+    font-size: var(--inat-font-size-xl);
+    margin-block-end: var(--inat-space-sm);
+}
+
+.inat-message-text {
+    font-size: var(--inat-font-size-base);
+    margin: 0 0 var(--inat-space-sm);
+}
+
+.inat-message-help {
+    color: var(--inat-color-text-muted);
+    font-size: var(--inat-font-size-sm);
+    margin: 0;
+}
+
+/* Retry button in error state */
+.inat-retry-button {
+    background-color: var(--inat-color-background);
+    border: var(--inat-border-width) solid var(--inat-color-error);
+    border-radius: var(--inat-border-radius);
+    color: var(--inat-color-error);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: var(--inat-font-size-base);
+    font-weight: 600;
+    margin-top: var(--inat-space-md);
+    min-height: 44px;
+    min-width: 44px;
+    padding: var(--inat-space-sm) var(--inat-space-lg);
+    transition: background-color var(--inat-transition-fast),
+                color var(--inat-transition-fast);
+}
+
+.inat-retry-button:hover {
+    background-color: var(--inat-color-error);
+    color: var(--inat-color-background);
+}
+
+.inat-retry-button:focus {
+    box-shadow: var(--inat-focus-ring);
+    outline: none;
+}
+
+/* ==========================================================================
+   Results Count
+   ========================================================================== */
+
+.inat-results-count {
+    color: var(--inat-color-text-muted);
+    font-size: var(--inat-font-size-sm);
+    margin-block-end: var(--inat-space-md);
+}
+
+.inat-results-count strong {
+    color: var(--inat-color-text);
+}
+
+/* ==========================================================================
+   RTL (Right-to-Left) Support
+   ========================================================================== */
+
+[dir="rtl"] .inat-filter-select {
+    background-position: left var(--inat-space-sm) center;
+    padding-inline-end: var(--inat-space-sm);
+    padding-inline-start: var(--inat-space-xl);
+}
+
+[dir="rtl"] .inat-observation-location,
+[dir="rtl"] .inat-observation-date {
+    flex-direction: row-reverse;
+}
+
+/* ==========================================================================
+   Forced Colors / Windows High Contrast Mode
+   ========================================================================== */
+
+@media (forced-colors: active) {
+    .inat-observations-widget {
+        border: 2px solid CanvasText;
+    }
+
+    .inat-observation-card {
+        border: 1px solid CanvasText;
+    }
+
+    .inat-filter-select {
+        border: 1px solid CanvasText;
+    }
+
+    .inat-retry-button {
+        border: 2px solid ButtonText;
+    }
+
+    .inat-spinner {
+        border-color: CanvasText;
+        border-top-color: Highlight;
+    }
+
+    .inat-field-tag {
+        border: 1px solid CanvasText;
+    }
+
+    /* Ensure focus indicators are visible */
+    :focus {
+        outline: 3px solid Highlight;
+        outline-offset: 2px;
+    }
+}
+
+/* ==========================================================================
+   Print Styles
+   ========================================================================== */
+
+@media print {
+    .inat-observations-widget {
+        border: 1px solid #000;
+        box-shadow: none;
+    }
+
+    .inat-filters {
+        display: none;
+    }
+
+    .inat-skip-link {
+        display: none !important;
+    }
+
+    .inat-observations-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .inat-observation-card {
+        break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid #ccc;
+    }
+
+    /* Add URL after external links for print */
+    .inat-observation-species-link::after {
+        content: " (" attr(href) ")";
+        font-size: 0.75em;
+        font-weight: normal;
+    }
+}
+
+/* ==========================================================================
+   Skeleton Loading Placeholders
+   ========================================================================== */
+
+.inat-skeleton-card {
+    background-color: var(--inat-color-surface);
+    border: var(--inat-border-width) solid var(--inat-color-border-light);
+    border-radius: var(--inat-border-radius);
+    overflow: hidden;
+}
+
+.inat-skeleton-image {
+    aspect-ratio: 4 / 3;
+    background-color: var(--inat-color-border-light);
+}
+
+.inat-skeleton-content {
+    padding: var(--inat-space-md);
+}
+
+.inat-skeleton-title {
+    height: 1.5em;
+    width: 70%;
+    margin-bottom: var(--inat-space-sm);
+}
+
+.inat-skeleton-text {
+    height: 1em;
+    width: 50%;
+    margin-bottom: var(--inat-space-xs);
+}
+
+.inat-skeleton-text-short {
+    height: 1em;
+    width: 30%;
+}

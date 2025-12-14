@@ -167,17 +167,22 @@
             </a>
 
             <!-- Filter controls region -->
-            <div class="inat-filters" role="search" aria-label="<?php esc_attr_e('Filter observations', 'inat-observations-wp'); ?>">
+            <div class="inat-filters" role="group" aria-labelledby="inat-filter-heading">
+                <span id="inat-filter-heading" class="screen-reader-text">
+                    <?php esc_html_e('Filter observations controls', 'inat-observations-wp'); ?>
+                </span>
                 <label for="inat-filter-field" class="inat-filter-label">
                     <?php esc_html_e('Filter by observation field:', 'inat-observations-wp'); ?>
                 </label>
                 <select id="inat-filter-field"
                         class="inat-filter-select"
-                        aria-describedby="inat-filter-help">
+                        aria-describedby="inat-filter-help"
+                        aria-controls="inat-list"
+                        disabled>
                     <option value=""><?php esc_html_e('Loading filters...', 'inat-observations-wp'); ?></option>
                 </select>
-                <span id="inat-filter-help" class="inat-help-text screen-reader-text">
-                    <?php esc_html_e('Select an observation field to filter the list below.', 'inat-observations-wp'); ?>
+                <span id="inat-filter-help" class="inat-help-text">
+                    <?php esc_html_e('Select a field to filter the observation list.', 'inat-observations-wp'); ?>
                 </span>
             </div>
 
@@ -194,11 +199,12 @@
                  role="region"
                  aria-label="<?php esc_attr_e('Observations list', 'inat-observations-wp'); ?>"
                  aria-busy="true"
+                 aria-live="polite"
                  tabindex="-1">
-                <p class="inat-loading-message">
-                    <span class="inat-spinner" aria-hidden="true"></span>
-                    <?php esc_html_e('Loading observations...', 'inat-observations-wp'); ?>
-                </p>
+                <div class="inat-loading-message" role="status">
+                    <span class="inat-spinner" role="img" aria-label="<?php esc_attr_e('Loading indicator', 'inat-observations-wp'); ?>"></span>
+                    <span><?php esc_html_e('Loading observations...', 'inat-observations-wp'); ?></span>
+                </div>
             </div>
 
         </section>
