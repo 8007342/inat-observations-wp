@@ -63,6 +63,11 @@
 
     // Load all plugin modules in dependency order
     // Each module is conditionally required to prevent conflicts
+    //
+    // 0. settings.php (Configuration Layer) - Must load first
+    //    - Provides inat_obs_get_setting() for all other modules
+    //    - Registers WordPress Settings API hooks
+    require_once plugin_dir_path(__DIR__) . 'includes/settings.php';
     require_once plugin_dir_path(__DIR__) . 'includes/api.php';
     require_once plugin_dir_path(__DIR__) . 'includes/db-schema.php';
     require_once plugin_dir_path(__DIR__) . 'includes/shortcode.php';

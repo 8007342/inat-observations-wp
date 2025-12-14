@@ -92,15 +92,15 @@
      * - Add timeout/circuit breaker to prevent cascading failures
      */
     function inat_obs_fetch_observations($args = []) {
-        if (defined('WP_DEBUG') && WP_DEBUG) {
+        if (inat_obs_is_debug()) {
             error_log('[iNat Observations] Fetching observations');
         }
 
         // Merge provided arguments with defaults
-        // Use environment variables for project slug and cache lifetime
+        // Use centralized settings system (falls back to env vars for compatibility)
         $defaults = [
-            'project' => getenv('INAT_PROJECT_SLUG') ?: 'project_slug_here',
-            'per_page' => 100,
+            'project' => inat_obs_get_setting('project_slug'),
+            'per_page' => inat_obs_get_setting('default_per_page'),
             'page' => 1,
         ];
         $opts = array_merge($defaults, $args);
@@ -130,12 +130,12 @@
         $transient_key = 'inat_obs_cache_' . md5($url);
         $cached = get_transient($transient_key);
         if ($cached) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
+            if (inat_obs_is_debug()) {
                 error_log('[iNat Observations] Cache hit');
             }
             return $cached;
         }
-        if (defined('WP_DEBUG') && WP_DEBUG) {
+        if (inat_obs_is_debug()) {
             error_log('[iNat Observations] Cache miss - fetching from API');
         }
 
@@ -145,8 +145,8 @@
         ];
 
         // Optional: Include bearer token for higher API rate limits and private data access
-        // Token is read from INAT_API_TOKEN environment variable (kept in .env, not committed)
-        $token = getenv('INAT_API_TOKEN') ?: null;
+        // Token is read from plugin settings (with fallback to environment variable)
+        $token = inat_obs_get_setting('api_token');
         if ($token) {
             // Sanitize token - remove any whitespace or control characters
             $token = preg_replace('/[\x00-\x1F\x7F]/', '', trim($token));
@@ -159,7 +159,7 @@
 
         // Check for network-level errors (connection failures, timeouts, etc.)
         if (is_wp_error($resp)) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
+            if (inat_obs_is_debug()) {
                 error_log('[iNat Observations] API request failed: ' . esc_html($resp->get_error_message()));
             }
             return $resp;
@@ -172,7 +172,7 @@
         // Only accept successful (200 OK) responses
         // Other codes indicate API errors, rate limiting, or server issues
         if ($code !== 200) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
+            if (inat_obs_is_debug()) {
                 error_log('[iNat Observations] API error - HTTP ' . absint($code));
             }
             return new WP_Error('inat_api_error', 'Unexpected HTTP code ' . absint($code), ['status' => $code]);
@@ -185,14 +185,14 @@
         }
 
         $result_count = isset($data['results']) ? count($data['results']) : 0;
-        if (defined('WP_DEBUG') && WP_DEBUG) {
+        if (inat_obs_is_debug()) {
             error_log('[iNat Observations] Successfully fetched ' . absint($result_count) . ' observations');
         }
 
         // Cache results using WordPress transients (stored in database by default)
         // Configurable lifetime allows balancing between data freshness and API quota
         // Set transient only on successful fetch - errors are not cached to allow retry
-        $cache_lifetime = absint(getenv('CACHE_LIFETIME') ?: 3600);
+        $cache_lifetime = inat_obs_get_setting('cache_lifetime');
         $cache_lifetime = max(60, min(86400, $cache_lifetime)); // Bounds: 1 minute to 24 hours
         set_transient($transient_key, $data, $cache_lifetime);
         return $data;

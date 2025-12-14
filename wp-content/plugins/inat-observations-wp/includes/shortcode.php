@@ -111,15 +111,15 @@
      * - Support multiple shortcodes per page with unique IDs
      */
     function inat_obs_shortcode_render($atts = []) {
-        if (defined('WP_DEBUG') && WP_DEBUG) {
+        if (inat_obs_is_debug()) {
             error_log('[iNat Observations] Rendering shortcode');
         }
 
         // Parse and validate shortcode attributes with defaults
-        // Accepts project slug and per_page from shortcode, falls back to environment variables
+        // Accepts project slug and per_page from shortcode, falls back to plugin settings
         $atts = shortcode_atts([
-            'project' => getenv('INAT_PROJECT_SLUG') ?: 'project_slug_here',
-            'per_page' => 50,
+            'project' => inat_obs_get_setting('project_slug'),
+            'per_page' => inat_obs_get_setting('default_per_page'),
         ], $atts, 'inat_observations');
 
         // Sanitize shortcode attributes to prevent injection
