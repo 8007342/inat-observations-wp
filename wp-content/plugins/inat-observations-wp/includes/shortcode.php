@@ -15,6 +15,12 @@
         wp_enqueue_script('inat-observations-main', plugin_dir_url(__FILE__) . '/../assets/js/main.js', ['jquery'], INAT_OBS_VERSION, true);
         wp_enqueue_style('inat-observations-css', plugin_dir_url(__FILE__) . '/../assets/css/main.css', [], INAT_OBS_VERSION);
 
+        // Localize script with AJAX URL and nonce for security
+        wp_localize_script('inat-observations-main', 'inatObsSettings', [
+            'ajaxUrl' => admin_url('admin-ajax.php'),
+            'nonce'   => wp_create_nonce('inat_obs_fetch'),
+        ]);
+
         // Minimal render. JS will enhance filters.
         ob_start();
         echo '<div id="inat-observations-root">';
@@ -31,6 +37,12 @@
     add_action('wp_ajax_nopriv_inat_obs_fetch', 'inat_obs_ajax_fetch');
 
     function inat_obs_ajax_fetch() {
+        // Verify nonce for security (CSRF protection)
+        if (!check_ajax_referer('inat_obs_fetch', 'nonce', false)) {
+            wp_send_json_error(['message' => 'Security check failed'], 403);
+            return;
+        }
+
         // TODO: rate-limit this endpoint. Return cached DB rows or transient.
         $data = inat_obs_fetch_observations(['per_page' => 50]);
         wp_send_json_success($data);
