@@ -4,3 +4,14 @@
 # Temporary working files
 /tmp/db
 /tmp/html
+
+# Composer dependencies
+/vendor/
+composer.lock
+
+# PHPUnit and test coverage
+/coverage/
+/.phpunit.result.cache
+
+# WordPress test library
+/tmp/wordpress-tests-lib/

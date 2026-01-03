@@ -17,7 +17,11 @@
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
-            KEY observed_on (observed_on)
+            KEY observed_on (observed_on),
+            KEY species_guess (species_guess),
+            KEY place_guess (place_guess),
+            KEY uuid (uuid),
+            KEY observed_species (observed_on, species_guess)
         ) $charset_collate;";
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
@@ -50,7 +54,7 @@
                     'created_at' => current_time('mysql', 1),
                     'updated_at' => current_time('mysql', 1),
                 ],
-                ['%d','%s','%s','%s','%s','%s','%s']
+                ['%d','%s','%s','%s','%s','%s','%s','%s']
             );
         }
     }

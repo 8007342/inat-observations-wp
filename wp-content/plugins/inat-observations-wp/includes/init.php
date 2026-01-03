@@ -36,3 +36,25 @@
         // $items = inat_obs_fetch_observations(['per_page' => 200]);
         // inat_obs_store_items($items);
     }
+
+    // Security headers (S-LOW-002)
+    function inat_obs_security_headers() {
+        header('X-Content-Type-Options: nosniff');
+        header('X-Frame-Options: SAMEORIGIN');
+        header('X-XSS-Protection: 1; mode=block');
+        header('Referrer-Policy: strict-origin-when-cross-origin');
+    }
+    add_action('send_headers', 'inat_obs_security_headers');
+
+    // HTTPS enforcement (S-HIGH-002)
+    function inat_obs_enforce_https() {
+        // Only enforce on production environments and when plugin is active on frontend
+        if (!is_ssl() && !is_admin() && defined('WP_ENV') && WP_ENV === 'production') {
+            wp_die(
+                esc_html('This plugin requires HTTPS for secure operation. Please enable SSL on your site.'),
+                esc_html('HTTPS Required'),
+                ['response' => 403]
+            );
+        }
+    }
+    add_action('init', 'inat_obs_enforce_https');

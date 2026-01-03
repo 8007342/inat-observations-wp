@@ -9,7 +9,7 @@
     function inat_obs_settings_page() {
         if (!current_user_can('manage_options')) return;
         // TODO: implement settings form to store INAT_API_TOKEN and project slug in options
-        echo '<div class="wrap"><h1>iNaturalist Observations Settings</h1>';
-        echo '<p>Settings UI not yet implemented. Edit <code>.env</code> or implement options storage.</p>';
+        echo '<div class="wrap"><h1>' . esc_html('iNaturalist Observations Settings') . '</h1>';
+        echo '<p>' . esc_html('Settings UI not yet implemented. Edit ') . '<code>' . esc_html('.env') . '</code>' . esc_html(' or implement options storage.') . '</p>';
         echo '</div>';
     }

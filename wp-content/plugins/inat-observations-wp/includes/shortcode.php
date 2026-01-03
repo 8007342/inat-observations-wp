@@ -23,11 +23,11 @@
 
         // Minimal render. JS will enhance filters.
         ob_start();
-        echo '<div id="inat-observations-root">';
-        echo '<div class="inat-filters">';
-        echo '<select id="inat-filter-field"><option value="">Loading filters...</option></select>';
+        echo '<div id="' . esc_attr('inat-observations-root') . '">';
+        echo '<div class="' . esc_attr('inat-filters') . '">';
+        echo '<select id="' . esc_attr('inat-filter-field') . '"><option value="">' . esc_html('Loading filters...') . '</option></select>';
         echo '</div>';
-        echo '<div id="inat-list">Loading observations...</div>';
+        echo '<div id="' . esc_attr('inat-list') . '">' . esc_html('Loading observations...') . '</div>';
         echo '</div>';
         return ob_get_clean();
     }
@@ -43,7 +43,70 @@
             return;
         }
 
-        // TODO: rate-limit this endpoint. Return cached DB rows or transient.
-        $data = inat_obs_fetch_observations(['per_page' => 50]);
-        wp_send_json_success($data);
+        global $wpdb;
+
+        // Validate and sanitize pagination parameters
+        $per_page = isset($_GET['per_page']) ? absint($_GET['per_page']) : 50;
+        $per_page = min(max($per_page, 1), 100); // Clamp between 1 and 100
+        $page = isset($_GET['page']) ? max(1, absint($_GET['page'])) : 1;
+        $offset = ($page - 1) * $per_page;
+
+        // Validate and sanitize filter parameters
+        $species_filter = isset($_GET['species']) ? sanitize_text_field($_GET['species']) : '';
+        $place_filter = isset($_GET['place']) ? sanitize_text_field($_GET['place']) : '';
+
+        // Build cache key
+        $cache_key = 'inat_obs_ajax_' . md5(serialize([
+            'per_page' => $per_page,
+            'page' => $page,
+            'species' => $species_filter,
+            'place' => $place_filter
+        ]));
+
+        // Try object cache first (if available)
+        $results = wp_cache_get($cache_key, 'inat_observations');
+
+        if (false === $results) {
+            // Build WHERE clause
+            $where_clauses = [];
+            $prepare_args = [];
+
+            if (!empty($species_filter)) {
+                $where_clauses[] = 'species_guess LIKE %s';
+                $prepare_args[] = '%' . $wpdb->esc_like($species_filter) . '%';
+            }
+
+            if (!empty($place_filter)) {
+                $where_clauses[] = 'place_guess LIKE %s';
+                $prepare_args[] = '%' . $wpdb->esc_like($place_filter) . '%';
+            }
+
+            $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
+
+            // Add LIMIT and OFFSET to prepare args
+            $prepare_args[] = $per_page;
+            $prepare_args[] = $offset;
+
+            // Query database (fast!)
+            $table = $wpdb->prefix . 'inat_observations';
+            $sql = "SELECT * FROM $table $where_sql ORDER BY observed_on DESC LIMIT %d OFFSET %d";
+
+            if (!empty($prepare_args)) {
+                $results = $wpdb->get_results($wpdb->prepare($sql, $prepare_args), ARRAY_A);
+            } else {
+                $results = $wpdb->get_results($wpdb->prepare("SELECT * FROM $table ORDER BY observed_on DESC LIMIT %d OFFSET %d", $per_page, $offset), ARRAY_A);
+            }
+
+            // Decode JSON metadata for each result
+            foreach ($results as &$result) {
+                if (isset($result['metadata'])) {
+                    $result['metadata'] = json_decode($result['metadata'], true);
+                }
+            }
+
+            // Cache query result for 5 minutes
+            wp_cache_set($cache_key, $results, 'inat_observations', 300);
+        }
+
+        wp_send_json_success(['results' => $results]);
     }
