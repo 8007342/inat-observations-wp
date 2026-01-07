@@ -9,6 +9,17 @@
     require_once plugin_dir_path(__DIR__) . 'includes/rest.php';
     require_once plugin_dir_path(__DIR__) . 'includes/admin.php';
 
+    // Add custom cron schedule for 4 hours
+    add_filter('cron_schedules', 'inat_obs_custom_cron_schedules');
+
+    function inat_obs_custom_cron_schedules($schedules) {
+        $schedules['fourhours'] = [
+            'interval' => 4 * HOUR_IN_SECONDS,
+            'display' => __('Every 4 Hours'),
+        ];
+        return $schedules;
+    }
+
     // Activation hooks
     register_activation_hook(plugin_dir_path(__DIR__) . 'inat-observations-wp.php', 'inat_obs_activate');
     register_deactivation_hook(plugin_dir_path(__DIR__) . 'inat-observations-wp.php', 'inat_obs_deactivate');
@@ -16,10 +27,30 @@
     function inat_obs_activate() {
         // Create DB schema
         inat_obs_install_schema();
-        // Schedule daily refresh if not already scheduled
-        if (!wp_next_scheduled('inat_obs_refresh')) {
-            wp_schedule_event(time(), 'daily', 'inat_obs_refresh');
+        // Schedule refresh based on settings
+        inat_obs_schedule_refresh();
+    }
+
+    function inat_obs_schedule_refresh() {
+        // Get refresh rate from settings
+        $refresh_rate = get_option('inat_obs_refresh_rate', 'daily');
+
+        // Map setting to cron schedule
+        $schedule_map = [
+            '4hours' => 'fourhours',
+            'daily' => 'daily',
+            'weekly' => 'weekly',
+        ];
+        $schedule = $schedule_map[$refresh_rate] ?? 'daily';
+
+        // Clear any existing schedule
+        $timestamp = wp_next_scheduled('inat_obs_refresh');
+        if ($timestamp) {
+            wp_unschedule_event($timestamp, 'inat_obs_refresh');
         }
+
+        // Schedule new event
+        wp_schedule_event(time(), $schedule, 'inat_obs_refresh');
     }
 
     function inat_obs_deactivate() {
@@ -34,6 +65,7 @@
         // Get settings
         $user_id = get_option('inat_obs_user_id', '');
         $project_id = get_option('inat_obs_project_id', INAT_OBS_DEFAULT_PROJECT_ID);
+        $max_fetch_size = get_option('inat_obs_api_fetch_size', 2000);
 
         // Validate: at least one required
         if (empty($user_id) && empty($project_id)) {
@@ -41,9 +73,9 @@
             return;
         }
 
-        // Pagination loop to fetch ALL observations
+        // Pagination loop to fetch observations up to max_fetch_size
         $page = 1;
-        $per_page = 200; // Max allowed by iNaturalist API
+        $per_page = 200; // Max allowed by iNaturalist API (fixed)
         $total_fetched = 0;
 
         do {
@@ -69,9 +101,15 @@
             $results_count = count($data['results'] ?? []);
             $total_fetched += $results_count;
 
-            error_log("iNat Observations: Fetched page $page - $results_count observations");
+            error_log("iNat Observations: Fetched page $page - $results_count observations (total: $total_fetched / $max_fetch_size)");
 
-            // Check if there are more pages
+            // Check if we've reached the configured limit
+            if ($total_fetched >= $max_fetch_size) {
+                error_log("iNat Observations: Reached configured limit of $max_fetch_size observations");
+                break;
+            }
+
+            // Check if there are more pages available from iNaturalist
             // iNaturalist API: if results < per_page, we're on the last page
             if ($results_count < $per_page) {
                 break;

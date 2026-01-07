@@ -7,12 +7,13 @@
     function inat_obs_shortcode_render($atts = []) {
         // Get defaults from plugin settings
         $default_project = get_option('inat_obs_project_id', INAT_OBS_DEFAULT_PROJECT_ID);
+        $default_per_page = get_option('inat_obs_display_page_size', '50');
 
         // Merge shortcode attributes with defaults
         // Shortcode attributes override plugin settings for flexibility
         $atts = shortcode_atts([
             'project' => $default_project,
-            'per_page' => 50,
+            'per_page' => $default_per_page,
         ], $atts, 'inat_observations');
 
         // Enqueue assets
@@ -52,10 +53,18 @@
         global $wpdb;
 
         // Validate and sanitize pagination parameters
-        $per_page = isset($_GET['per_page']) ? absint($_GET['per_page']) : 50;
-        $per_page = min(max($per_page, 1), 100); // Clamp between 1 and 100
+        $per_page_param = isset($_GET['per_page']) ? sanitize_text_field($_GET['per_page']) : '50';
         $page = isset($_GET['page']) ? max(1, absint($_GET['page'])) : 1;
-        $offset = ($page - 1) * $per_page;
+
+        // Handle "all" option
+        if ($per_page_param === 'all') {
+            $per_page = PHP_INT_MAX; // No limit
+            $offset = 0;
+        } else {
+            $per_page = absint($per_page_param);
+            $per_page = min(max($per_page, 1), 10000); // Clamp between 1 and 10000
+            $offset = ($page - 1) * $per_page;
+        }
 
         // Validate and sanitize filter parameters
         $species_filter = isset($_GET['species']) ? sanitize_text_field($_GET['species']) : '';

@@ -19,6 +19,11 @@
 
     add_action('admin_init', 'inat_obs_register_settings');
 
+    function inat_obs_sanitize_refresh_rate($value) {
+        $valid_options = ['4hours', 'daily', 'weekly'];
+        return in_array($value, $valid_options, true) ? $value : 'daily';
+    }
+
     function inat_obs_register_settings() {
         register_setting('inat_obs_settings_group', 'inat_obs_user_id', [
             'type' => 'string',
@@ -30,6 +35,24 @@
             'type' => 'string',
             'sanitize_callback' => 'sanitize_text_field',
             'default' => INAT_OBS_DEFAULT_PROJECT_ID,
+        ]);
+
+        register_setting('inat_obs_settings_group', 'inat_obs_refresh_rate', [
+            'type' => 'string',
+            'sanitize_callback' => 'inat_obs_sanitize_refresh_rate',
+            'default' => 'daily',
+        ]);
+
+        register_setting('inat_obs_settings_group', 'inat_obs_api_fetch_size', [
+            'type' => 'integer',
+            'sanitize_callback' => 'absint',
+            'default' => 2000,
+        ]);
+
+        register_setting('inat_obs_settings_group', 'inat_obs_display_page_size', [
+            'type' => 'string',
+            'sanitize_callback' => 'sanitize_text_field',
+            'default' => '50',
         ]);
 
         add_settings_section(
@@ -51,6 +74,30 @@
             'inat_obs_project_id',
             'Project ID',
             'inat_obs_project_id_field_callback',
+            'inat-observations',
+            'inat_obs_config_section'
+        );
+
+        add_settings_field(
+            'inat_obs_refresh_rate',
+            'Refresh Rate',
+            'inat_obs_refresh_rate_field_callback',
+            'inat-observations',
+            'inat_obs_config_section'
+        );
+
+        add_settings_field(
+            'inat_obs_api_fetch_size',
+            'API Fetch Size',
+            'inat_obs_api_fetch_size_field_callback',
+            'inat-observations',
+            'inat_obs_config_section'
+        );
+
+        add_settings_field(
+            'inat_obs_display_page_size',
+            'Display Page Size',
+            'inat_obs_display_page_size_field_callback',
             'inat-observations',
             'inat_obs_config_section'
         );
@@ -81,6 +128,51 @@
         if ($value === INAT_OBS_DEFAULT_PROJECT_ID) {
             echo '<p class="description" style="color: #666; font-size: 0.9em;">Default: San Diego Mycological Society (<a href="https://sdmyco.org" target="_blank">sdmyco.org</a>) - the original inspiration for this plugin.</p>';
         }
+    }
+
+    function inat_obs_refresh_rate_field_callback() {
+        $value = get_option('inat_obs_refresh_rate', 'daily');
+        $options = [
+            '4hours' => 'Every 4 Hours',
+            'daily' => 'Daily',
+            'weekly' => 'Weekly',
+        ];
+        echo '<select id="inat_obs_refresh_rate" name="inat_obs_refresh_rate">';
+        foreach ($options as $option_value => $option_label) {
+            $selected = ($value === $option_value) ? 'selected' : '';
+            echo '<option value="' . esc_attr($option_value) . '" ' . $selected . '>' . esc_html($option_label) . '</option>';
+        }
+        echo '</select>';
+        echo '<p class="description">How often to automatically fetch fresh observations from iNaturalist. Default: Daily.</p>';
+    }
+
+    function inat_obs_api_fetch_size_field_callback() {
+        $value = get_option('inat_obs_api_fetch_size', 2000);
+        $options = [400, 2000, 10000];
+        echo '<select id="inat_obs_api_fetch_size" name="inat_obs_api_fetch_size">';
+        foreach ($options as $option_value) {
+            $selected = ($value == $option_value) ? 'selected' : '';
+            echo '<option value="' . esc_attr($option_value) . '" ' . $selected . '>' . esc_html($option_value) . '</option>';
+        }
+        echo '</select>';
+        echo '<p class="description">Maximum number of observations to cache from iNaturalist. Default: 2000. Note: Fetches 200 per API request due to iNaturalist limits.</p>';
+    }
+
+    function inat_obs_display_page_size_field_callback() {
+        $value = get_option('inat_obs_display_page_size', '50');
+        $options = [
+            '10' => '10',
+            '50' => '50',
+            '200' => '200',
+            'all' => 'All',
+        ];
+        echo '<select id="inat_obs_display_page_size" name="inat_obs_display_page_size">';
+        foreach ($options as $option_value => $option_label) {
+            $selected = ($value === $option_value) ? 'selected' : '';
+            echo '<option value="' . esc_attr($option_value) . '" ' . $selected . '>' . esc_html($option_label) . '</option>';
+        }
+        echo '</select>';
+        echo '<p class="description">Default number of observations to show per page in shortcode view. Default: 50. Can be overridden by shortcode attribute.</p>';
     }
 
     function inat_obs_status_section_callback() {
@@ -132,6 +224,14 @@
                 // Save settings
                 update_option('inat_obs_user_id', $user_id);
                 update_option('inat_obs_project_id', $project_id);
+
+                // If refresh rate changed, reschedule cron
+                $old_refresh_rate = get_option('inat_obs_refresh_rate', 'daily');
+                $new_refresh_rate = sanitize_text_field($_POST['inat_obs_refresh_rate'] ?? 'daily');
+                if ($old_refresh_rate !== $new_refresh_rate) {
+                    update_option('inat_obs_refresh_rate', $new_refresh_rate);
+                    inat_obs_schedule_refresh();
+                }
 
                 add_settings_error(
                     'inat_obs_settings',
