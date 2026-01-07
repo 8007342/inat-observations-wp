@@ -10,6 +10,8 @@ services:
     volumes:
       # :Z flag enables private SELinux relabeling (Fedora Silverblue compatibility)
       - ./docker-volumes/mysql:/var/lib/mysql:Z
+      # Custom MySQL configuration (increased limits for large datasets)
+      - ./docker/mysql.cnf:/etc/mysql/conf.d/inat-custom.cnf:Z
 
   wordpress:
     container_name: wordpress
@@ -28,3 +30,5 @@ services:
       - ./docker-volumes/wordpress:/var/www/html:Z
       # Plugin development mount (live editing)
       - ./wp-content/plugins/inat-observations-wp:/var/www/html/wp-content/plugins/inat-observations-wp:Z
+      # Custom PHP configuration (increased memory/execution limits)
+      - ./docker/php.ini:/usr/local/etc/php/conf.d/inat-custom.ini:Z

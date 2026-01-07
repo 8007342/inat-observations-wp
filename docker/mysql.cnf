@@ -1,0 +1,45 @@
+# Custom MySQL configuration for iNat Observations WordPress development
+# This file increases limits for handling large datasets
+
+[mysqld]
+# Memory and buffer settings
+max_allowed_packet = 64M         # Default: 16M - increased for large inserts
+innodb_buffer_pool_size = 256M   # Default: 128M - increased for better caching
+innodb_log_file_size = 64M       # Default: 48M - increased for bulk operations
+
+# Connection settings
+max_connections = 200            # Default: 151 - allow more concurrent connections
+connect_timeout = 30             # Default: 10 - allow slower connections
+
+# Query cache (deprecated in MySQL 8.0 but kept for compatibility)
+# Note: MySQL 8.0 removed query cache, these are ignored but harmless
+query_cache_size = 0
+query_cache_type = 0
+
+# Performance optimizations
+innodb_flush_log_at_trx_commit = 2  # Default: 1 - better performance, slight durability trade-off
+innodb_flush_method = O_DIRECT       # Avoid double buffering
+
+# Logging (development mode - verbose)
+general_log = 1
+general_log_file = /var/log/mysql/general.log
+slow_query_log = 1
+slow_query_log_file = /var/log/mysql/slow.log
+long_query_time = 2              # Log queries taking > 2 seconds
+
+# Character set
+character_set_server = utf8mb4
+collation_server = utf8mb4_unicode_ci
+
+# Timezone
+default_time_zone = '+00:00'
+
+[mysql]
+# Client settings
+max_allowed_packet = 64M
+
+[mysqldump]
+# Dump settings
+max_allowed_packet = 64M
+quick
+quote_names

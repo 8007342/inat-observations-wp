@@ -1,8 +1,9 @@
 # TODO-002: Pagination Galore
 
-**Status**: In Progress
+**Status**: Mostly Complete (Testing Pending)
 **Priority**: High
 **Reported**: 2026-01-06
+**Last Updated**: 2026-01-06 - Corrected pagination values based on iNaturalist API documentation
 
 ## Problem
 
@@ -26,11 +27,16 @@ Add three new configurable options to the admin settings page:
    - Implementation: Update wp_schedule_event() interval
 
 2. **API Fetch Pagination Size**
-   - Controls how many observations to fetch per API request during refresh
-   - Options: 400, 2000, 10000
+   - Controls how many observations to fetch during refresh (TOTAL cache size)
+   - Options: 200, 1000, 2000, 5000
    - Default: 2000
-   - Max allowed by iNaturalist: 200 per request (so we still paginate)
-   - This setting affects TOTAL cache size, not per-request size
+   - Max allowed by iNaturalist: 200 per request (so we still paginate internally)
+   - Rate limiting: 1 second between requests (60 req/min, staying within recommended limit)
+   - Time estimates:
+     - 200 observations = 1 API request (~1 second)
+     - 1,000 observations = 5 API requests (~5 seconds)
+     - 2,000 observations = 10 API requests (~10 seconds)
+     - 5,000 observations = 25 API requests (~25 seconds)
 
 3. **Display Pagination Size**
    - Controls default number of observations shown in shortcode view
@@ -84,28 +90,33 @@ Add three new configurable options to the admin settings page:
 
 ## Implementation Plan
 
-### Phase 1: Settings UI (30 min)
-- [ ] Add refresh_rate field to admin.php
-- [ ] Add api_fetch_size field to admin.php
-- [ ] Add display_page_size field to admin.php
-- [ ] Add validation logic
-- [ ] Test settings save/load
+### Phase 1: Settings UI (30 min) ✅ COMPLETED
+- [x] Add refresh_rate field to admin.php
+- [x] Add api_fetch_size field to admin.php (updated with corrected values: 200, 1000, 2000, 5000)
+- [x] Add display_page_size field to admin.php
+- [x] Add validation logic
+- [x] Test settings save/load
 
-### Phase 2: Backend Integration (45 min)
-- [ ] Add custom cron interval for 4 hours
-- [ ] Update wp_schedule_event() in init.php
-- [ ] Update inat_obs_refresh_job() to respect api_fetch_size
-- [ ] Update inat_obs_ajax_fetch() to respect display_page_size
-- [ ] Update inat_obs_rest_fetch() to respect display_page_size
-- [ ] Add pagination parameters (page, per_page) to endpoints
+**Update (2026-01-06)**: API fetch size values corrected based on iNaturalist API documentation:
+- Changed from [400, 2000, 10000] to [200, 1000, 2000, 5000]
+- Values now clearly aligned with 200-per-request API limit
+- Added time estimates to help users understand impact of each option
 
-### Phase 3: Frontend Pagination (60 min)
-- [ ] Add filter bar UI in main.js
-- [ ] Add "Show per page" dropdown
-- [ ] Add previous/next buttons
-- [ ] Add page number display
-- [ ] Update AJAX call to include pagination params
-- [ ] Handle "all" option (fetch all, no pagination)
+### Phase 2: Backend Integration (45 min) ✅ MOSTLY COMPLETED
+- [x] Add custom cron interval for 4 hours (init.php:12-21)
+- [x] Update wp_schedule_event() in init.php (init.php:34-54)
+- [x] Update inat_obs_refresh_job() to respect api_fetch_size (init.php:64-134)
+- [x] Update inat_obs_ajax_fetch() to respect display_page_size (implemented)
+- [x] Update inat_obs_rest_fetch() to respect display_page_size (implemented)
+- [x] Add pagination parameters (page, per_page) to endpoints (implemented)
+
+### Phase 3: Frontend Pagination (60 min) ✅ COMPLETED
+- [x] Add filter bar UI in main.js (main.js:67-99)
+- [x] Add "Show per page" dropdown (main.js:69-79)
+- [x] Add previous/next buttons (main.js:85-95)
+- [x] Add page number display (main.js:83)
+- [x] Update AJAX call to include pagination params (main.js:24-28)
+- [x] Handle "all" option (fetch all, no pagination) (main.js:64-66, 82-96)
 
 ### Phase 4: Testing (45 min)
 - [ ] Write unit tests for settings validation

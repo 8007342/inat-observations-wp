@@ -7,6 +7,12 @@
      * Author:      Ayahuitl Tlatoani
      * License:     GPLv2 or later
      * Text Domain: inat-observations-wp
+     * Requires at least: 5.8
+     * Requires PHP: 7.4
+     *
+     * GitHub Plugin URI: 8007342/inat-observations-wp
+     * GitHub Branch: main
+     * Primary Branch: main
      */
 
     if (!defined('ABSPATH')) {

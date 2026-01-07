@@ -17,8 +17,8 @@
         ], $atts, 'inat_observations');
 
         // Enqueue assets
-        wp_enqueue_script('inat-observations-main', plugin_dir_url(__FILE__) . '/../assets/js/main.js', ['jquery'], INAT_OBS_VERSION, true);
-        wp_enqueue_style('inat-observations-css', plugin_dir_url(__FILE__) . '/../assets/css/main.css', [], INAT_OBS_VERSION);
+        wp_enqueue_script('inat-observations-main', INAT_OBS_URL . 'assets/js/main.js', ['jquery'], INAT_OBS_VERSION, true);
+        wp_enqueue_style('inat-observations-css', INAT_OBS_URL . 'assets/css/main.css', [], INAT_OBS_VERSION);
 
         // Localize script with AJAX URL, nonce, and initial settings for security
         wp_localize_script('inat-observations-main', 'inatObsSettings', [

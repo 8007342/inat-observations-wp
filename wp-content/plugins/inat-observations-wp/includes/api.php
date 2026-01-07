@@ -5,7 +5,7 @@
     /**
      * Fetch observations from iNaturalist.
      *
-     * @param array $args Options like 'project', 'per_page', 'page'
+     * @param array $args Options like 'project', 'per_page', 'page', 'no_cache'
      * @return array Decoded JSON results or WP_Error
      */
     function inat_obs_fetch_observations($args = []) {
@@ -13,6 +13,7 @@
         $defaults = [
             'per_page' => 100,
             'page' => 1,
+            'no_cache' => false,
         ];
         $opts = array_merge($defaults, $args);
         $base = 'https://api.inaturalist.org/v1/observations';
@@ -23,6 +24,7 @@
             'page' => $opts['page'],
             'order' => 'desc',
             'order_by' => 'created_at',
+            'fields' => 'all',  // CRITICAL: Include observation field values (ofvs) for DNA filter
         ];
 
         // Add user_id if provided
@@ -38,10 +40,13 @@
         $params = http_build_query($params_array);
         $url = $base . '?' . $params;
 
+        // Check cache unless no_cache is set (used during refresh to get fresh data)
         $transient_key = 'inat_obs_cache_' . md5($url);
-        $cached = get_transient($transient_key);
-        if ($cached) {
-            return $cached;
+        if (!$opts['no_cache']) {
+            $cached = get_transient($transient_key);
+            if ($cached) {
+                return $cached;
+            }
         }
 
         $headers = [

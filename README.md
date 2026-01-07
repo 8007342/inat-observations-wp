@@ -18,17 +18,46 @@ This project is a WordPress plugin skeleton named `inat-observations-wp`. It fet
 - `.gitignore` : Ignore transient /tmp files and .env files used by the docker images.
 
 **Development workflow**
-- Install Docker as appropriate.
-- From [VS Code](https://code.visualstudio.com/) launch the dev environment by opening the
-    file [docker-compose.yml](/docker-compose.yml) and `compose up/restart` as appropriate.
-- Visit [localhost:8080](http://localhost:8080) to finish WordPress install the first time; and
-    [/wp-admin](http://localhost:8080/wp-admin) afterwards for the Wordpress dashboard.
-- Activate the plugin from [WP Admin/Plugins](http://localhost:8080/wp-admin/plugins.php).
 
-**Debug docker instances `wordpress` and `mysql`**
-- `docker logs -f wordpress` on a terminal for WordPress output. Debug statements from the
-        plugin development should show up here.
-- `docker logs -f mysql` on a terminal for mysql output. Database logs are not controled by Wordpress.
+**Quick Start (Recommended)**:
+```bash
+./inat.sh                      # Start WordPress dev environment
+./inat.sh --clean-and-install  # Fresh install with auto-configuration
+./inat.sh logs                 # View container logs
+```
+
+The `inat.sh` script automatically:
+- Detects Fedora Silverblue and enters toolbox if needed
+- Uses podman-compose (recommended) or docker-compose
+- Provides easy commands for clean installs and log viewing
+- See script for full usage options
+
+**Manual workflow**:
+- Install Docker/Podman as appropriate
+  - Fedora Silverblue: Use podman-compose (built-in)
+  - Other systems: docker-compose or podman-compose
+- From [VS Code](https://code.visualstudio.com/) launch the dev environment by opening
+    [docker-compose.yml](/docker-compose.yml) and `compose up/restart`
+- Visit [localhost:8080](http://localhost:8080) to finish WordPress install the first time
+- Visit [/wp-admin](http://localhost:8080/wp-admin) for the WordPress dashboard
+- Activate the plugin from [WP Admin/Plugins](http://localhost:8080/wp-admin/plugins.php)
+
+**Container configuration**:
+- **PHP**: Custom config at `docker/php.ini`
+  - 512MB memory limit (default: 128MB)
+  - 5 minute execution time (default: 30s)
+  - Optimized for large dataset processing
+- **MySQL**: Custom config at `docker/mysql.cnf`
+  - 64MB max packet size (default: 16MB)
+  - 256MB buffer pool (default: 128MB)
+  - Optimized for bulk inserts
+- **Note**: Recreate containers after config changes: `./inat.sh --clean && ./inat.sh`
+
+**Debug containers `wordpress` and `mysql`**
+- `./inat.sh logs` (recommended) - tail all logs
+- `podman logs -f wordpress` - WordPress output only
+- `podman logs -f mysql` - MySQL output only
+- Plugin debug logs appear in WordPress container logs
 
 
 **Security note**

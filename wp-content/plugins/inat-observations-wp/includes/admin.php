@@ -18,6 +18,47 @@
     });
 
     add_action('admin_init', 'inat_obs_register_settings');
+    add_action('admin_init', 'inat_obs_check_database_version');
+    add_action('admin_notices', 'inat_obs_database_update_notice');
+
+    /**
+     * Check database version and trigger migration if needed.
+     * Runs on every admin page load (lightweight check).
+     */
+    function inat_obs_check_database_version() {
+        // Check if manual update was triggered
+        if (isset($_GET['inat_obs_update_db']) && check_admin_referer('inat_obs_update_db')) {
+            inat_obs_install_schema();  // Run migrations
+            add_settings_error(
+                'inat_obs_messages',
+                'inat_obs_db_updated',
+                'Database updated successfully to v' . INAT_OBS_DB_VERSION . '!',
+                'success'
+            );
+            // Redirect to remove query param
+            wp_redirect(admin_url('options-general.php?page=inat-observations'));
+            exit;
+        }
+    }
+
+    /**
+     * Show admin notice if database needs updating.
+     */
+    function inat_obs_database_update_notice() {
+        $current_version = get_option('inat_obs_db_version', '0');
+
+        if (version_compare($current_version, INAT_OBS_DB_VERSION, '<')) {
+            $update_url = wp_nonce_url(
+                admin_url('options-general.php?page=inat-observations&inat_obs_update_db=1'),
+                'inat_obs_update_db'
+            );
+
+            echo '<div class="notice notice-warning is-dismissible">';
+            echo '<p><strong>iNaturalist Observations:</strong> Database update required (current: v' . esc_html($current_version) . ', latest: v' . esc_html(INAT_OBS_DB_VERSION) . ').</p>';
+            echo '<p><a href="' . esc_url($update_url) . '" class="button button-primary">Update Database Now</a></p>';
+            echo '</div>';
+        }
+    }
 
     function inat_obs_sanitize_refresh_rate($value) {
         $valid_options = ['4hours', 'daily', 'weekly'];
@@ -59,6 +100,12 @@
             'type' => 'string',
             'sanitize_callback' => 'sanitize_text_field',
             'default' => '',
+        ]);
+
+        register_setting('inat_obs_settings_group', 'inat_obs_enable_thumbnails', [
+            'type' => 'boolean',
+            'sanitize_callback' => 'rest_sanitize_boolean',
+            'default' => true,  // Enabled by default (pretty thumbnails!)
         ]);
 
         add_settings_section(
@@ -116,6 +163,14 @@
             'inat_obs_config_section'
         );
 
+        add_settings_field(
+            'inat_obs_enable_thumbnails',
+            'Enable Thumbnails',
+            'inat_obs_enable_thumbnails_field_callback',
+            'inat-observations',
+            'inat_obs_config_section'
+        );
+
         add_settings_section(
             'inat_obs_status_section',
             'Status',
@@ -162,14 +217,19 @@
 
     function inat_obs_api_fetch_size_field_callback() {
         $value = get_option('inat_obs_api_fetch_size', 2000);
-        $options = [400, 2000, 10000];
+        $options = [
+            200 => '200 (1 request, ~1 second)',
+            1000 => '1,000 (5 requests, ~5 seconds)',
+            2000 => '2,000 (10 requests, ~10 seconds)',
+            5000 => '5,000 (25 requests, ~25 seconds)',
+        ];
         echo '<select id="inat_obs_api_fetch_size" name="inat_obs_api_fetch_size">';
-        foreach ($options as $option_value) {
+        foreach ($options as $option_value => $option_label) {
             $selected = ($value == $option_value) ? 'selected' : '';
-            echo '<option value="' . esc_attr($option_value) . '" ' . $selected . '>' . esc_html($option_value) . '</option>';
+            echo '<option value="' . esc_attr($option_value) . '" ' . $selected . '>' . esc_html($option_label) . '</option>';
         }
         echo '</select>';
-        echo '<p class="description">Maximum number of observations to cache from iNaturalist. Default: 2000. Note: Fetches 200 per API request due to iNaturalist limits.</p>';
+        echo '<p class="description">Maximum observations to cache from iNaturalist. iNaturalist API returns 200 results per request; we rate-limit to 60 requests/minute (1 second between requests). Default: 2,000 observations.</p>';
     }
 
     function inat_obs_display_page_size_field_callback() {
@@ -205,15 +265,39 @@
         echo '</p>';
     }
 
+    function inat_obs_enable_thumbnails_field_callback() {
+        $value = get_option('inat_obs_enable_thumbnails', true);
+        $checked = $value ? 'checked' : '';
+        echo '<label>';
+        echo '<input type="checkbox" id="inat_obs_enable_thumbnails" name="inat_obs_enable_thumbnails" value="1" ' . $checked . '>';
+        echo ' Display thumbnail images in observation cards';
+        echo '</label>';
+        echo '<p class="description">';
+        echo '<strong>Legal Notice:</strong> Images are hosted by <a href="https://www.inaturalist.org" target="_blank" rel="noopener">iNaturalist</a> and subject to individual photographer licenses. ';
+        echo 'By enabling this feature, you agree to comply with <a href="https://www.inaturalist.org/pages/terms" target="_blank" rel="noopener">iNaturalist Terms of Service</a> and ';
+        echo '<a href="https://creativecommons.org/licenses/" target="_blank" rel="noopener">Creative Commons licenses</a>. ';
+        echo 'Attribution is provided via image hover tooltips and footer disclaimer.';
+        echo '</p>';
+        echo '<p class="description" style="margin-top: 10px; color: #2271b1;">';
+        echo '✅ <strong>Legal Status:</strong> Hotlinking images from iNaturalist is allowed (Amazon ODP covers bandwidth). ';
+        echo 'XSS protection via domain whitelist. For science! 🧬';
+        echo '</p>';
+    }
+
     function inat_obs_status_section_callback() {
         $last_refresh = get_option('inat_obs_last_refresh', '');
         $last_count = get_option('inat_obs_last_refresh_count', 0);
+        $total_count = get_option('inat_obs_total_count', 0);
         $next_scheduled = wp_next_scheduled('inat_obs_refresh');
 
         if ($last_refresh) {
-            echo '<p><strong>Last Refresh:</strong> ' . esc_html($last_refresh) . ' (' . esc_html($last_count) . ' observations)</p>';
+            echo '<p><strong>Last Refresh:</strong> ' . esc_html($last_refresh) . ' (' . esc_html($last_count) . ' fetched)</p>';
         } else {
             echo '<p><strong>Last Refresh:</strong> Never</p>';
+        }
+
+        if ($total_count > 0) {
+            echo '<p><strong>Total Observations in Database:</strong> ' . number_format($total_count) . '</p>';
         }
 
         if ($next_scheduled) {
