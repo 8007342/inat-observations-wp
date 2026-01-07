@@ -262,7 +262,9 @@
             const species = obs.species_guess || 'Unknown species';
             const taxonName = obs.taxon_name || '';  // Scientific name (binomial nomenclature)
             const place = obs.place_guess || 'Unknown location';
-            const date = obs.observed_on || 'Unknown date';
+            // Remove time portion from date (only show YYYY-MM-DD)
+            const dateRaw = obs.observed_on || 'Unknown date';
+            const date = dateRaw.split(' ')[0] || dateRaw;  // Keep only date part
             const id = obs.id || '';
 
             // Photo data
@@ -625,10 +627,20 @@
       }
 
       // Filter BOTH species and locations (prefix matching)
+      // Species now includes both common_name and scientific_name (taxon)
       const speciesMatches = (cache.species || [])
-        .filter(item => item.toLowerCase().startsWith(query))
+        .filter(item => {
+          const commonName = (item.common_name || item || '').toLowerCase();
+          const scientificName = (item.scientific_name || '').toLowerCase();
+          return commonName.startsWith(query) || scientificName.startsWith(query);
+        })
         .slice(0, 10)
-        .map(item => ({ value: item, type: 'species', emoji: '📋' }));
+        .map(item => ({
+          value: item.common_name || item,
+          type: 'species',
+          emoji: '📋',
+          subtitle: item.scientific_name || null
+        }));
 
       const locationMatches = (cache.location || [])
         .filter(item => item.toLowerCase().startsWith(query))
@@ -654,13 +666,23 @@
       dropdown.innerHTML = '';
       allMatches.forEach(match => {
         const option = document.createElement('div');
-        option.innerHTML = '<span style="margin-right: 8px;">' + match.emoji + '</span>' + escapeHtml(match.value);
+
+        // Build HTML with optional subtitle (scientific name)
+        let html = '<div style="display: flex; align-items: center; width: 100%;">';
+        html += '<span style="margin-right: 8px;">' + match.emoji + '</span>';
+        html += '<div style="flex: 1;">';
+        html += '<div>' + escapeHtml(match.value) + '</div>';
+        if (match.subtitle) {
+          html += '<div style="font-size: 11px; color: #666; font-style: italic; margin-top: 2px;">' + escapeHtml(match.subtitle) + '</div>';
+        }
+        html += '</div>';
+        html += '</div>';
+
+        option.innerHTML = html;
         option.style.cssText = `
           padding: 10px 12px;
           cursor: pointer;
           border-bottom: 1px solid #f0f0f0;
-          display: flex;
-          align-items: center;
         `;
         option.addEventListener('mouseenter', function() {
           this.style.background = '#f0f0f0';
@@ -805,7 +827,9 @@
       const species = obs.species_guess || 'Unknown species';
       const taxonName = obs.taxon_name || '';  // Scientific name (binomial nomenclature)
       const place = obs.place_guess || 'Unknown location';
-      const date = obs.observed_on || 'Unknown date';
+      // Remove time portion from date (only show YYYY-MM-DD)
+      const dateRaw = obs.observed_on || 'Unknown date';
+      const date = dateRaw.split(' ')[0] || dateRaw;  // Keep only date part
       const id = obs.id || '';
       const photoUrl = obs.photo_url || '';
       const photoAttribution = obs.photo_attribution || 'iNaturalist User';

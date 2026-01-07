@@ -13,12 +13,13 @@ if (!defined('ABSPATH')) exit;
  */
 function inat_obs_get_species_autocomplete() {
     // Try cache first (Tlatoani's performance directive)
-    $cache_key = 'inat_obs_species_autocomplete_v1';
+    // v2: Now returns structured data with common_name and scientific_name
+    $cache_key = 'inat_obs_species_autocomplete_v2';
     $species = get_transient($cache_key);
 
     if ($species !== false) {
         // Cache hit - prepend "Unknown Species" and return
-        array_unshift($species, 'Unknown Species');
+        array_unshift($species, ['common_name' => 'Unknown Species', 'scientific_name' => '']);
         error_log('iNat Autocomplete: Species list from cache (' . count($species) . ' items)');
         return $species;
     }
@@ -29,14 +30,17 @@ function inat_obs_get_species_autocomplete() {
 
     $start_time = microtime(true);
 
-    // Query distinct species (EXPENSIVE!)
-    $results = $wpdb->get_col("
-        SELECT DISTINCT species_guess
+    // Query distinct species with taxon names (EXPENSIVE!)
+    // Returns array of objects with both common and scientific names
+    $results = $wpdb->get_results("
+        SELECT DISTINCT
+            species_guess as common_name,
+            taxon_name as scientific_name
         FROM $table
         WHERE species_guess != ''
         ORDER BY species_guess ASC
         LIMIT 1000
-    ");
+    ", ARRAY_A);
 
     $query_time = microtime(true) - $start_time;
 
@@ -53,7 +57,7 @@ function inat_obs_get_species_autocomplete() {
     ));
 
     // Prepend "Unknown Species" as special filter value
-    array_unshift($results, 'Unknown Species');
+    array_unshift($results, ['common_name' => 'Unknown Species', 'scientific_name' => '']);
 
     return $results;
 }
@@ -103,7 +107,8 @@ function inat_obs_get_location_autocomplete() {
  * Called after observation refresh.
  */
 function inat_obs_invalidate_autocomplete_cache() {
-    delete_transient('inat_obs_species_autocomplete_v1');
+    delete_transient('inat_obs_species_autocomplete_v1');  // Legacy
+    delete_transient('inat_obs_species_autocomplete_v2');  // Current
     delete_transient('inat_obs_location_autocomplete_v1');
     error_log('iNat Autocomplete: Cache invalidated (will regenerate on next request)');
 }

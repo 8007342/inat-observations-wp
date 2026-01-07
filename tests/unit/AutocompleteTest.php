@@ -38,7 +38,11 @@ class AutocompleteTest extends PHPUnit\Framework\TestCase {
      * Test species autocomplete returns cached data
      */
     public function test_get_species_autocomplete_uses_cache() {
-        $cached_species = ['Robin', 'Sparrow', 'Eagle'];
+        $cached_species = [
+            ['common_name' => 'Robin', 'scientific_name' => 'Turdus migratorius'],
+            ['common_name' => 'Sparrow', 'scientific_name' => 'Passer domesticus'],
+            ['common_name' => 'Eagle', 'scientific_name' => 'Aquila chrysaetos']
+        ];
 
         Functions\when('get_transient')->justReturn($cached_species);
 
@@ -46,8 +50,8 @@ class AutocompleteTest extends PHPUnit\Framework\TestCase {
 
         // Should return cached data with "Unknown Species" prepended
         $this->assertCount(4, $result);
-        $this->assertEquals('Unknown Species', $result[0]);
-        $this->assertEquals('Robin', $result[1]);
+        $this->assertEquals(['common_name' => 'Unknown Species', 'scientific_name' => ''], $result[0]);
+        $this->assertEquals(['common_name' => 'Robin', 'scientific_name' => 'Turdus migratorius'], $result[1]);
     }
 
     /**
@@ -59,7 +63,11 @@ class AutocompleteTest extends PHPUnit\Framework\TestCase {
 
         $wpdb = Mockery::mock('wpdb');
         $wpdb->prefix = 'wp_';
-        $wpdb->shouldReceive('get_col')->andReturn(['Hummingbird', 'Finch', 'Crow']);
+        $wpdb->shouldReceive('get_results')->andReturn([
+            ['common_name' => 'Hummingbird', 'scientific_name' => 'Archilochus colubris'],
+            ['common_name' => 'Finch', 'scientific_name' => 'Haemorhous mexicanus'],
+            ['common_name' => 'Crow', 'scientific_name' => 'Corvus brachyrhynchos']
+        ]);
 
         $GLOBALS['wpdb'] = $wpdb;
 
@@ -67,8 +75,8 @@ class AutocompleteTest extends PHPUnit\Framework\TestCase {
 
         // Should query database and prepend "Unknown Species"
         $this->assertCount(4, $result);
-        $this->assertEquals('Unknown Species', $result[0]);
-        $this->assertEquals('Hummingbird', $result[1]);
+        $this->assertEquals(['common_name' => 'Unknown Species', 'scientific_name' => ''], $result[0]);
+        $this->assertEquals(['common_name' => 'Hummingbird', 'scientific_name' => 'Archilochus colubris'], $result[1]);
     }
 
     /**
@@ -81,7 +89,7 @@ class AutocompleteTest extends PHPUnit\Framework\TestCase {
         $wpdb = Mockery::mock('wpdb');
         $wpdb->prefix = 'wp_';
         $captured_sql = null;
-        $wpdb->shouldReceive('get_col')->andReturnUsing(function($sql) use (&$captured_sql) {
+        $wpdb->shouldReceive('get_results')->andReturnUsing(function($sql) use (&$captured_sql) {
             $captured_sql = $sql;
             return [];
         });
@@ -104,7 +112,7 @@ class AutocompleteTest extends PHPUnit\Framework\TestCase {
         $wpdb = Mockery::mock('wpdb');
         $wpdb->prefix = 'wp_';
         $captured_sql = null;
-        $wpdb->shouldReceive('get_col')->andReturnUsing(function($sql) use (&$captured_sql) {
+        $wpdb->shouldReceive('get_results')->andReturnUsing(function($sql) use (&$captured_sql) {
             $captured_sql = $sql;
             return [];
         });
@@ -164,8 +172,9 @@ class AutocompleteTest extends PHPUnit\Framework\TestCase {
 
         inat_obs_invalidate_autocomplete_cache();
 
-        // Verify both caches are deleted
+        // Verify both legacy v1 and current v2 species caches are deleted
         $this->assertContains('inat_obs_species_autocomplete_v1', $deleted_keys);
+        $this->assertContains('inat_obs_species_autocomplete_v2', $deleted_keys);
         $this->assertContains('inat_obs_location_autocomplete_v1', $deleted_keys);
     }
 
@@ -177,7 +186,10 @@ class AutocompleteTest extends PHPUnit\Framework\TestCase {
 
         Functions\when('check_ajax_referer')->justReturn(true);
         Functions\when('sanitize_text_field')->returnArg();
-        Functions\when('get_transient')->justReturn(['Robin', 'Sparrow']);
+        Functions\when('get_transient')->justReturn([
+            ['common_name' => 'Robin', 'scientific_name' => 'Turdus migratorius'],
+            ['common_name' => 'Sparrow', 'scientific_name' => 'Passer domesticus']
+        ]);
 
         $sent_json = null;
         Functions\when('wp_send_json_success')->alias(function($data) use (&$sent_json) {
@@ -191,7 +203,7 @@ class AutocompleteTest extends PHPUnit\Framework\TestCase {
         $this->assertIsArray($sent_json['suggestions']);
         // Should have "Unknown Species" prepended
         $this->assertCount(3, $sent_json['suggestions']);
-        $this->assertEquals('Unknown Species', $sent_json['suggestions'][0]);
+        $this->assertEquals(['common_name' => 'Unknown Species', 'scientific_name' => ''], $sent_json['suggestions'][0]);
     }
 
     /**

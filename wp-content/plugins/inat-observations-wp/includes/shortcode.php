@@ -70,12 +70,35 @@
         $species_filter = isset($_GET['species']) ? sanitize_text_field($_GET['species']) : '';
         $place_filter = isset($_GET['place']) ? sanitize_text_field($_GET['place']) : '';
 
+        // Validate and sanitize sort parameters
+        $sort = isset($_GET['sort']) ? sanitize_text_field($_GET['sort']) : 'date';
+        $order = isset($_GET['order']) ? sanitize_text_field($_GET['order']) : 'desc';
+
+        // Whitelist for sort columns (SQL injection prevention)
+        $sort_columns = [
+            'date' => 'observed_on',
+            'species' => 'species_guess',
+            'location' => 'place_guess',
+            'taxon' => 'taxon_name'
+        ];
+
+        // Whitelist for sort order
+        $sort_orders = ['asc', 'desc'];
+
+        // Validate sort column
+        $sort_column = isset($sort_columns[$sort]) ? $sort_columns[$sort] : 'observed_on';
+
+        // Validate sort order
+        $sort_order = in_array(strtolower($order), $sort_orders) ? strtolower($order) : 'desc';
+
         // Build cache key
         $cache_key = 'inat_obs_ajax_' . md5(serialize([
             'per_page' => $per_page,
             'page' => $page,
             'species' => $species_filter,
-            'place' => $place_filter
+            'place' => $place_filter,
+            'sort' => $sort,
+            'order' => $order
         ]));
 
         // Try object cache first (if available)
@@ -104,12 +127,12 @@
 
             // Query database (fast!)
             $table = $wpdb->prefix . 'inat_observations';
-            $sql = "SELECT * FROM $table $where_sql ORDER BY observed_on DESC LIMIT %d OFFSET %d";
+            $sql = "SELECT * FROM $table $where_sql ORDER BY $sort_column $sort_order LIMIT %d OFFSET %d";
 
             if (!empty($prepare_args)) {
                 $results = $wpdb->get_results($wpdb->prepare($sql, $prepare_args), ARRAY_A);
             } else {
-                $results = $wpdb->get_results($wpdb->prepare("SELECT * FROM $table ORDER BY observed_on DESC LIMIT %d OFFSET %d", $per_page, $offset), ARRAY_A);
+                $results = $wpdb->get_results($wpdb->prepare("SELECT * FROM $table ORDER BY $sort_column $sort_order LIMIT %d OFFSET %d", $per_page, $offset), ARRAY_A);
             }
 
             // Decode JSON metadata for each result
