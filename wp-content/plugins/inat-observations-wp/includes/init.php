@@ -31,10 +31,41 @@
     add_action('inat_obs_refresh', 'inat_obs_refresh_job');
 
     function inat_obs_refresh_job() {
-        // TODO: call fetch and store functions
-        // Example:
-        // $items = inat_obs_fetch_observations(['per_page' => 200]);
-        // inat_obs_store_items($items);
+        // Get settings
+        $user_id = get_option('inat_obs_user_id', '');
+        $project_id = get_option('inat_obs_project_id', INAT_OBS_DEFAULT_PROJECT_ID);
+
+        // Validate: at least one required
+        if (empty($user_id) && empty($project_id)) {
+            error_log('iNat Observations: Cannot refresh - no USER-ID or PROJECT-ID configured');
+            return;
+        }
+
+        // Build query args
+        $args = ['per_page' => 200, 'page' => 1];
+        if (!empty($user_id)) {
+            $args['user_id'] = $user_id;
+        }
+        if (!empty($project_id)) {
+            $args['project'] = $project_id;
+        }
+
+        // Fetch observations
+        $data = inat_obs_fetch_observations($args);
+        if (is_wp_error($data)) {
+            error_log('iNat Observations: API fetch failed - ' . $data->get_error_message());
+            return;
+        }
+
+        // Store in database
+        inat_obs_store_items($data);
+
+        // Log success
+        $count = count($data['results'] ?? []);
+        update_option('inat_obs_last_refresh', current_time('mysql'));
+        update_option('inat_obs_last_refresh_count', $count);
+
+        error_log("iNat Observations: Refresh completed - fetched $count observations");
     }
 
     // Security headers (S-LOW-002)

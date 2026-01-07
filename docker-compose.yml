@@ -1,26 +1,30 @@
 services:
-  wordpress:
-    container_name: wordpress
-    image: wordpress:latest
-    depends_on:
-      - db
-    ports:
-      - "8080:80"
-    environment:
-      WORDPRESS_DB_HOST: db
-      WORDPRESS_DB_USER: wordpress
-      WORDPRESS_DB_PASSWORD: wordpress
-      WORDPRESS_DB_NAME: wordpress
-    volumes:
-      - ./tmp/html:/var/www/html
-      - ./wp-content/plugins/inat-observations-wp:/var/www/html/wp-content/plugins/inat-observations-wp
-  db:
+  mysql:
     container_name: mysql
-    image: mysql:latest
+    image: mysql:8.0
     environment:
       MYSQL_DATABASE: wordpress
       MYSQL_USER: wordpress
       MYSQL_PASSWORD: wordpress
       MYSQL_ROOT_PASSWORD: root
     volumes:
-      - ./tmp/db:/var/lib/mysql
+      # :Z flag enables private SELinux relabeling (Fedora Silverblue compatibility)
+      - ./docker-volumes/mysql:/var/lib/mysql:Z
+
+  wordpress:
+    container_name: wordpress
+    image: wordpress:latest
+    depends_on:
+      - mysql
+    ports:
+      - "8080:80"
+    environment:
+      WORDPRESS_DB_HOST: mysql:3306
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+      # WordPress files
+      - ./docker-volumes/wordpress:/var/www/html:Z
+      # Plugin development mount (live editing)
+      - ./wp-content/plugins/inat-observations-wp:/var/www/html/wp-content/plugins/inat-observations-wp:Z

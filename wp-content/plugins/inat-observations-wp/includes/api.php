@@ -11,19 +11,31 @@
     function inat_obs_fetch_observations($args = []) {
         // TODO: implement pagination, rate limiting, exponential backoff.
         $defaults = [
-            'project' => getenv('INAT_PROJECT_SLUG') ?: 'project_slug_here',
             'per_page' => 100,
             'page' => 1,
         ];
         $opts = array_merge($defaults, $args);
         $base = 'https://api.inaturalist.org/v1/observations';
-        $params = http_build_query([
-            'project_id' => $opts['project'],
+
+        // Build query parameters
+        $params_array = [
             'per_page' => $opts['per_page'],
             'page' => $opts['page'],
             'order' => 'desc',
             'order_by' => 'created_at',
-        ]);
+        ];
+
+        // Add user_id if provided
+        if (!empty($opts['user_id'])) {
+            $params_array['user_id'] = $opts['user_id'];
+        }
+
+        // Add project_id if provided
+        if (!empty($opts['project'])) {
+            $params_array['project_id'] = $opts['project'];
+        }
+
+        $params = http_build_query($params_array);
         $url = $base . '?' . $params;
 
         $transient_key = 'inat_obs_cache_' . md5($url);
