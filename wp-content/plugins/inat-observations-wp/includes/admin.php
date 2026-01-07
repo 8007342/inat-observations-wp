@@ -10,6 +10,13 @@
         add_options_page('iNaturalist Observations', 'iNat Observations', 'manage_options', 'inat-observations', 'inat_obs_settings_page');
     });
 
+    // Add "Settings" link on plugin page
+    add_filter('plugin_action_links_inat-observations-wp/inat-observations-wp.php', function($links) {
+        $settings_link = '<a href="' . admin_url('options-general.php?page=inat-observations') . '">Settings</a>';
+        array_unshift($links, $settings_link);
+        return $links;
+    });
+
     add_action('admin_init', 'inat_obs_register_settings');
 
     function inat_obs_register_settings() {
@@ -148,6 +155,51 @@
                 submit_button('Save Settings', 'primary', 'inat_obs_settings_submit');
                 ?>
             </form>
+
+            <hr style="margin: 40px 0;">
+
+            <div style="background: #f0f0f1; padding: 20px; border-left: 4px solid #2271b1;">
+                <h2 style="margin-top: 0;">📖 Usage Instructions</h2>
+
+                <h3>Display Observations on Your Site</h3>
+                <p>Create a new page or post and use the shortcode:</p>
+                <pre style="background: #fff; padding: 15px; border: 1px solid #ddd; font-family: monospace;">[inat_observations]</pre>
+
+                <h3>Shortcode Attributes</h3>
+                <p>Customize the display with optional attributes:</p>
+                <pre style="background: #fff; padding: 15px; border: 1px solid #ddd; font-family: monospace;">[inat_observations project="sdmyco" per_page="50"]</pre>
+
+                <table class="widefat" style="margin-top: 10px;">
+                    <thead>
+                        <tr>
+                            <th style="width: 150px;">Attribute</th>
+                            <th>Description</th>
+                            <th style="width: 150px;">Default</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>project</code></td>
+                            <td>Project slug from iNaturalist URL</td>
+                            <td><?php echo esc_html(get_option('inat_obs_project_id', INAT_OBS_DEFAULT_PROJECT_ID)); ?></td>
+                        </tr>
+                        <tr>
+                            <td><code>per_page</code></td>
+                            <td>Number of observations to display</td>
+                            <td>50</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>REST API Endpoint</h3>
+                <p>Access observations programmatically:</p>
+                <pre style="background: #fff; padding: 15px; border: 1px solid #ddd; font-family: monospace;"><?php echo esc_url(home_url('/wp-json/inat/v1/observations')); ?></pre>
+
+                <p style="margin-top: 20px; color: #666; font-size: 0.95em;">
+                    <strong>Tip:</strong> After saving settings above, click "Refresh Now" to fetch observations from iNaturalist.
+                    The plugin will automatically refresh daily, but you can trigger manual refreshes anytime.
+                </p>
+            </div>
         </div>
 
         <script>
