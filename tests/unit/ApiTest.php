@@ -22,9 +22,12 @@ class Test_Inat_API extends PHPUnit\Framework\TestCase {
         parent::setUp();
         Monkey\setUp();
 
-        // Set environment variables directly instead of mocking
+        // Set environment variables directly (getenv is used by api.php)
         putenv('CACHE_LIFETIME=3600');
-        putenv('INAT_API_TOKEN=');
+        putenv('INAT_API_TOKEN='); // No token by default
+
+        // Mock WordPress functions used in api.php
+        Functions\when('get_option')->justReturn(''); // Default: no API token in options
 
         // Define WordPress constants that the plugin checks
         if (!defined('ABSPATH')) {

@@ -17,6 +17,10 @@ class DbSchemaTest extends PHPUnit\Framework\TestCase {
         parent::setUp();
         Monkey\setUp();
 
+        // Mock WordPress functions used in db-schema.php
+        Functions\when('get_option')->justReturn('');
+        Functions\when('update_option')->justReturn(true);
+
         // Define WordPress constants
         if (!defined('ABSPATH')) {
             define('ABSPATH', '/tmp/wordpress/');
@@ -39,6 +43,9 @@ class DbSchemaTest extends PHPUnit\Framework\TestCase {
         $wpdb = Mockery::mock('wpdb');
         $wpdb->prefix = 'wp_';
         $wpdb->shouldReceive('get_charset_collate')->andReturn('DEFAULT CHARSET=utf8mb4');
+        $wpdb->shouldReceive('get_col')->andReturn([]); // Mock column check (used by schema upgrade)
+        $wpdb->shouldReceive('query')->andReturn(true); // Mock ALTER TABLE queries
+        $wpdb->shouldReceive('get_var')->andReturn('wp_inat_observation_fields'); // Mock SHOW TABLES check
 
         // Mock dbDelta function
         $captured_sql = null;
@@ -83,6 +90,10 @@ class DbSchemaTest extends PHPUnit\Framework\TestCase {
                 $captured_data[] = $data;
                 return 1;
             });
+
+        // Mock delete() and flush() methods used in inat_obs_store_items
+        $wpdb->shouldReceive('delete')->andReturn(1);
+        $wpdb->shouldReceive('flush')->andReturn(true);
 
         Functions\when('sanitize_text_field')->returnArg();
         Functions\when('current_time')->justReturn('2024-01-01 12:00:00');
@@ -144,6 +155,10 @@ class DbSchemaTest extends PHPUnit\Framework\TestCase {
                 return 1;
             });
 
+        // Mock delete() and flush() methods used in inat_obs_store_items
+        $wpdb->shouldReceive('delete')->andReturn(1);
+        $wpdb->shouldReceive('flush')->andReturn(true);
+
         Functions\when('sanitize_text_field')->returnArg();
         Functions\when('current_time')->justReturn('2024-01-01 12:00:00');
 
@@ -188,6 +203,10 @@ class DbSchemaTest extends PHPUnit\Framework\TestCase {
                 $captured_data = $data;
                 return 1;
             });
+
+        // Mock delete() and flush() methods used in inat_obs_store_items
+        $wpdb->shouldReceive('delete')->andReturn(1);
+        $wpdb->shouldReceive('flush')->andReturn(true);
 
         // Mock sanitize_text_field to actually transform input
         Functions\when('sanitize_text_field')->alias(function($text) {
@@ -247,6 +266,10 @@ class DbSchemaTest extends PHPUnit\Framework\TestCase {
                 $captured_data = $data;
                 return 1;
             });
+
+        // Mock delete() and flush() methods used in inat_obs_store_items
+        $wpdb->shouldReceive('delete')->andReturn(1);
+        $wpdb->shouldReceive('flush')->andReturn(true);
 
         Functions\when('sanitize_text_field')->returnArg();
         Functions\when('current_time')->justReturn('2024-01-01 12:00:00');
