@@ -606,6 +606,150 @@
         });
     }
 
+    // Get sort arrow indicator
+    function getSortArrow(column) {
+      if (currentSort === column) {
+        return currentOrder === 'asc' ? ' ↑' : ' ↓';
+      }
+      return ' ↕';  // Inactive column shows both arrows
+    }
+
+    // Handle sort column click
+    function handleSortClick(column) {
+      if (column === currentSort) {
+        // Toggle order if same column
+        currentOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+      } else {
+        // Switch to new column, default to ascending (except date defaults to descending)
+        currentSort = column;
+        currentOrder = column === 'date' ? 'desc' : 'asc';
+      }
+
+      console.log('[iNat] Sort changed:', currentSort, currentOrder);
+
+      // Reset to page 1 when sorting changes
+      currentPage = 1;
+
+      // Fetch with new sort
+      fetchObservations();
+    }
+
+    // Render LIST VIEW - Table format
+    function renderListView(results) {
+      let html = '<div class="inat-list-view" style="overflow-x: auto;">';
+      html += '<table style="width: 100%; border-collapse: collapse; background: #fff;">';
+
+      // Table header with sortable columns
+      html += '<thead>';
+      html += '<tr style="background: #f9f9f9; border-bottom: 2px solid #ddd;">';
+
+      // Photo column (not sortable)
+      html += '<th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600;">Photo</th>';
+
+      // Species column (sortable)
+      const speciesActive = currentSort === 'species';
+      html += '<th data-sort="species" style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600; cursor: pointer; user-select: none; ' + (speciesActive ? 'color: #2271b1;' : '') + '" title="Click to sort by species">';
+      html += 'Species' + getSortArrow('species');
+      html += '</th>';
+
+      // Location column (sortable)
+      const locationActive = currentSort === 'location';
+      html += '<th data-sort="location" style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600; cursor: pointer; user-select: none; ' + (locationActive ? 'color: #2271b1;' : '') + '" title="Click to sort by location">';
+      html += 'Location' + getSortArrow('location');
+      html += '</th>';
+
+      // Date column (sortable)
+      const dateActive = currentSort === 'date';
+      html += '<th data-sort="date" style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600; cursor: pointer; user-select: none; ' + (dateActive ? 'color: #2271b1;' : '') + '" title="Click to sort by date">';
+      html += 'Date' + getSortArrow('date');
+      html += '</th>';
+
+      // Actions column (not sortable)
+      html += '<th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600;">Actions</th>';
+
+      html += '</tr>';
+      html += '</thead>';
+
+      // Table body
+      html += '<tbody>';
+      results.forEach((obs, index) => {
+        const species = obs.species_guess || 'Unknown species';
+        const taxonName = obs.taxon_name || '';  // Scientific name (binomial nomenclature)
+        const place = obs.place_guess || 'Unknown location';
+        // Remove time portion from date (only show YYYY-MM-DD)
+        const dateRaw = obs.observed_on || 'Unknown date';
+        const date = dateRaw.split(' ')[0] || dateRaw;  // Keep only date part
+        const id = obs.id || '';
+        const photoUrl = obs.photo_url || '';
+        const photoAttribution = obs.photo_attribution || 'iNaturalist User';
+        const photoLicense = obs.photo_license || 'C';
+
+        const licenseDisplay = {
+          'cc-by': 'CC BY',
+          'cc-by-nc': 'CC BY-NC',
+          'cc-by-sa': 'CC BY-SA',
+          'cc-by-nd': 'CC BY-ND',
+          'cc0': 'CC0',
+          'C': 'All Rights Reserved'
+        }[photoLicense] || photoLicense;
+
+        const rowStyle = index % 2 === 0 ? 'background: #fff;' : 'background: #f9f9f9;';
+        const inatUrl = id ? buildINatUrl(id) : '';
+
+        // Make row clickable if we have a URL
+        const rowClickStyle = inatUrl ? ' cursor: pointer;' : '';
+        const rowClickHandler = inatUrl ? ' onclick="window.open(\'' + escapeHtml(inatUrl) + '\', \'_blank\')"' : '';
+        const rowHoverHandler = inatUrl ? ' onmouseover="this.style.backgroundColor=\'#e8f4f8\';" onmouseout="this.style.backgroundColor=\'' + (index % 2 === 0 ? '#fff' : '#f9f9f9') + '\';"' : '';
+
+        html += '<tr style="' + rowStyle + ' border-bottom: 1px solid #ddd;' + rowClickStyle + '"' + rowClickHandler + rowHoverHandler + '>';
+
+        // Photo thumbnail (small in list view)
+        html += '<td style="padding: 8px;">';
+        if (photoUrl) {
+          const imgData = buildImageSrcset(photoUrl);
+          html += '<img src="' + escapeHtml(imgData.src) + '" ';
+          html += 'srcset="' + escapeHtml(imgData.srcset) + '" ';
+          html += 'sizes="80px" ';  // Small thumbnail in list view
+          html += 'alt="' + escapeHtml(species) + '" ';
+          html += 'title="Photo © ' + escapeHtml(photoAttribution) + ' (' + escapeHtml(licenseDisplay) + ')" ';
+          html += 'loading="lazy" ';
+          html += 'style="width: 80px; height: 60px; object-fit: cover; border-radius: 4px;" ';
+          html += 'onerror="this.style.display=\'none\';">';
+        } else {
+          html += '<div style="width: 80px; height: 60px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #999; font-size: 11px;">No photo</div>';
+        }
+        html += '</td>';
+
+        // Species (with scientific name)
+        html += '<td style="padding: 8px;">';
+        html += '<strong>' + escapeHtml(species) + '</strong>';
+        if (taxonName) {
+          html += '<br><span style="font-style: italic; color: #666; font-size: 12px;">' + escapeHtml(taxonName) + '</span>';
+        }
+        html += '</td>';
+
+        // Location
+        html += '<td style="padding: 8px;">' + escapeHtml(place) + '</td>';
+
+        // Date
+        html += '<td style="padding: 8px;">' + escapeHtml(date) + '</td>';
+
+        // Actions (removed - row is now clickable)
+        html += '<td style="padding: 8px; color: #999; font-size: 12px;">';
+        if (inatUrl) {
+          html += '↗';  // Arrow icon to indicate external link
+        }
+        html += '</td>';
+
+        html += '</tr>';
+      });
+      html += '</tbody>';
+      html += '</table>';
+      html += '</div>';
+
+      return html;
+    }
+
     // Load autocomplete data on page load
     loadAutocomplete('species');
     loadAutocomplete('location');
@@ -868,150 +1012,6 @@
         dropdown.style.display = 'none';
       }
     });
-  }
-
-  // Get sort arrow indicator
-  function getSortArrow(column) {
-    if (currentSort === column) {
-      return currentOrder === 'asc' ? ' ↑' : ' ↓';
-    }
-    return ' ↕';  // Inactive column shows both arrows
-  }
-
-  // Handle sort column click
-  function handleSortClick(column) {
-    if (column === currentSort) {
-      // Toggle order if same column
-      currentOrder = currentOrder === 'asc' ? 'desc' : 'asc';
-    } else {
-      // Switch to new column, default to ascending (except date defaults to descending)
-      currentSort = column;
-      currentOrder = column === 'date' ? 'desc' : 'asc';
-    }
-
-    console.log('[iNat] Sort changed:', currentSort, currentOrder);
-
-    // Reset to page 1 when sorting changes
-    currentPage = 1;
-
-    // Fetch with new sort
-    fetchObservations();
-  }
-
-  // Render LIST VIEW - Table format
-  function renderListView(results) {
-    let html = '<div class="inat-list-view" style="overflow-x: auto;">';
-    html += '<table style="width: 100%; border-collapse: collapse; background: #fff;">';
-
-    // Table header with sortable columns
-    html += '<thead>';
-    html += '<tr style="background: #f9f9f9; border-bottom: 2px solid #ddd;">';
-
-    // Photo column (not sortable)
-    html += '<th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600;">Photo</th>';
-
-    // Species column (sortable)
-    const speciesActive = currentSort === 'species';
-    html += '<th data-sort="species" style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600; cursor: pointer; user-select: none; ' + (speciesActive ? 'color: #2271b1;' : '') + '" title="Click to sort by species">';
-    html += 'Species' + getSortArrow('species');
-    html += '</th>';
-
-    // Location column (sortable)
-    const locationActive = currentSort === 'location';
-    html += '<th data-sort="location" style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600; cursor: pointer; user-select: none; ' + (locationActive ? 'color: #2271b1;' : '') + '" title="Click to sort by location">';
-    html += 'Location' + getSortArrow('location');
-    html += '</th>';
-
-    // Date column (sortable)
-    const dateActive = currentSort === 'date';
-    html += '<th data-sort="date" style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600; cursor: pointer; user-select: none; ' + (dateActive ? 'color: #2271b1;' : '') + '" title="Click to sort by date">';
-    html += 'Date' + getSortArrow('date');
-    html += '</th>';
-
-    // Actions column (not sortable)
-    html += '<th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600;">Actions</th>';
-
-    html += '</tr>';
-    html += '</thead>';
-
-    // Table body
-    html += '<tbody>';
-    results.forEach((obs, index) => {
-      const species = obs.species_guess || 'Unknown species';
-      const taxonName = obs.taxon_name || '';  // Scientific name (binomial nomenclature)
-      const place = obs.place_guess || 'Unknown location';
-      // Remove time portion from date (only show YYYY-MM-DD)
-      const dateRaw = obs.observed_on || 'Unknown date';
-      const date = dateRaw.split(' ')[0] || dateRaw;  // Keep only date part
-      const id = obs.id || '';
-      const photoUrl = obs.photo_url || '';
-      const photoAttribution = obs.photo_attribution || 'iNaturalist User';
-      const photoLicense = obs.photo_license || 'C';
-
-      const licenseDisplay = {
-        'cc-by': 'CC BY',
-        'cc-by-nc': 'CC BY-NC',
-        'cc-by-sa': 'CC BY-SA',
-        'cc-by-nd': 'CC BY-ND',
-        'cc0': 'CC0',
-        'C': 'All Rights Reserved'
-      }[photoLicense] || photoLicense;
-
-      const rowStyle = index % 2 === 0 ? 'background: #fff;' : 'background: #f9f9f9;';
-      const inatUrl = id ? buildINatUrl(id) : '';
-
-      // Make row clickable if we have a URL
-      const rowClickStyle = inatUrl ? ' cursor: pointer;' : '';
-      const rowClickHandler = inatUrl ? ' onclick="window.open(\'' + escapeHtml(inatUrl) + '\', \'_blank\')"' : '';
-      const rowHoverHandler = inatUrl ? ' onmouseover="this.style.backgroundColor=\'#e8f4f8\';" onmouseout="this.style.backgroundColor=\'' + (index % 2 === 0 ? '#fff' : '#f9f9f9') + '\';"' : '';
-
-      html += '<tr style="' + rowStyle + ' border-bottom: 1px solid #ddd;' + rowClickStyle + '"' + rowClickHandler + rowHoverHandler + '>';
-
-      // Photo thumbnail (small in list view)
-      html += '<td style="padding: 8px;">';
-      if (photoUrl) {
-        const imgData = buildImageSrcset(photoUrl);
-        html += '<img src="' + escapeHtml(imgData.src) + '" ';
-        html += 'srcset="' + escapeHtml(imgData.srcset) + '" ';
-        html += 'sizes="80px" ';  // Small thumbnail in list view
-        html += 'alt="' + escapeHtml(species) + '" ';
-        html += 'title="Photo © ' + escapeHtml(photoAttribution) + ' (' + escapeHtml(licenseDisplay) + ')" ';
-        html += 'loading="lazy" ';
-        html += 'style="width: 80px; height: 60px; object-fit: cover; border-radius: 4px;" ';
-        html += 'onerror="this.style.display=\'none\';">';
-      } else {
-        html += '<div style="width: 80px; height: 60px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #999; font-size: 11px;">No photo</div>';
-      }
-      html += '</td>';
-
-      // Species (with scientific name)
-      html += '<td style="padding: 8px;">';
-      html += '<strong>' + escapeHtml(species) + '</strong>';
-      if (taxonName) {
-        html += '<br><span style="font-style: italic; color: #666; font-size: 12px;">' + escapeHtml(taxonName) + '</span>';
-      }
-      html += '</td>';
-
-      // Location
-      html += '<td style="padding: 8px;">' + escapeHtml(place) + '</td>';
-
-      // Date
-      html += '<td style="padding: 8px;">' + escapeHtml(date) + '</td>';
-
-      // Actions (removed - row is now clickable)
-      html += '<td style="padding: 8px; color: #999; font-size: 12px;">';
-      if (inatUrl) {
-        html += '↗';  // Arrow icon to indicate external link
-      }
-      html += '</td>';
-
-      html += '</tr>';
-    });
-    html += '</tbody>';
-    html += '</table>';
-    html += '</div>';
-
-    return html;
   }
 
   // Helper: Build page button array with ellipsis
