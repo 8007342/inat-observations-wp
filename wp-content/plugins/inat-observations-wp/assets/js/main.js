@@ -169,7 +169,7 @@
           }
 
           // Filter bar - Unified search with DNA checkbox (invisible frame for positioning, mobile-optimized)
-          let filterHtml = '<div id="inat-filter-bar" style="margin-bottom: 15px; padding: 12px; border: 1px solid transparent; border-radius: 4px; background: transparent; max-width: 100%; overflow-x: auto; overflow-y: visible; position: relative; z-index: 100000; box-sizing: border-box;">';
+          let filterHtml = '<div id="inat-filter-bar" style="margin-bottom: 15px; padding: 12px; border: 1px solid transparent; border-radius: 4px; background: transparent; max-width: 100%; position: relative; z-index: 100000; box-sizing: border-box;">';
 
           // Main filter row: DNA checkbox + unified search input
           filterHtml += '<div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: 100%; position: relative;">';
@@ -531,7 +531,172 @@
           // TODO-BUG-002: Unified search autocomplete with proper normalization
           const unifiedSearch = document.getElementById('inat-unified-search');
           if (unifiedSearch) {
-            attachCombinedAutocomplete(unifiedSearch);
+            // Attach combined autocomplete (species + locations with emoji indicators)
+            // Rebuilt from scratch with unified normalization
+            console.log('[iNat] Attaching combined autocomplete...');
+
+            // Create dropdown container
+            const dropdown = document.createElement('div');
+            dropdown.className = 'inat-autocomplete-dropdown';
+            dropdown.style.cssText = `
+              position: absolute;
+              background: white;
+              border: 1px solid #ddd;
+              border-top: none;
+              max-height: 300px;
+              overflow-y: auto;
+              z-index: 10000;
+              display: none;
+              box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+              left: 0;
+              right: 0;
+              width: 100%;
+            `;
+
+            // Wrap input in relative container
+            const wrapper = document.createElement('div');
+            wrapper.style.position = 'relative';
+            wrapper.style.display = 'inline-block';
+            wrapper.style.width = '100%';
+            unifiedSearch.parentNode.insertBefore(wrapper, unifiedSearch);
+            wrapper.appendChild(unifiedSearch);
+            wrapper.appendChild(dropdown);
+
+            // Load autocomplete data (both species and locations)
+            Promise.all([
+              fetch(inatObsSettings.ajaxUrl + '?action=inat_obs_autocomplete&field=species&nonce=' + inatObsSettings.nonce)
+                .then(r => r.json()),
+              fetch(inatObsSettings.ajaxUrl + '?action=inat_obs_autocomplete&field=location&nonce=' + inatObsSettings.nonce)
+                .then(r => r.json())
+            ])
+            .then(([speciesRes, locationRes]) => {
+              const speciesData = speciesRes.success ? speciesRes.data.suggestions : [];
+              const locationData = locationRes.success ? locationRes.data.suggestions : [];
+
+              console.log('[iNat] Loaded autocomplete:', speciesData.length, 'species,', locationData.length, 'locations');
+
+              // Combine both with type indicators
+              const allSuggestions = [
+                ...speciesData.map(s => ({
+                  type: 'species',
+                  display: s.common_name + (s.scientific_name ? ' (' + s.scientific_name + ')' : ''),
+                  value: s.normalized_value,
+                  originalName: s.common_name
+                })),
+                ...locationData.map(l => ({
+                  type: 'location',
+                  display: l.display,
+                  value: l.normalized_value,
+                  originalName: l.display
+                }))
+              ];
+
+              // Handle input events
+              unifiedSearch.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+
+                if (!query) {
+                  dropdown.style.display = 'none';
+                  return;
+                }
+
+                // Filter suggestions (search in display text)
+                const filtered = allSuggestions.filter(s =>
+                  s.display.toLowerCase().includes(query)
+                );
+
+                if (filtered.length === 0) {
+                  dropdown.style.display = 'none';
+                  return;
+                }
+
+                // Limit to 50 results
+                const limited = filtered.slice(0, 50);
+
+                // Render dropdown
+                dropdown.innerHTML = '';
+                limited.forEach(suggestion => {
+                  const item = document.createElement('div');
+                  item.className = 'inat-autocomplete-item';
+
+                  // Emoji indicator
+                  const emoji = suggestion.type === 'species' ? '🦎' : '📍';
+
+                  item.innerHTML = emoji + ' ' + escapeHtml(suggestion.display);
+                  item.style.cssText = `
+                    padding: 10px;
+                    cursor: pointer;
+                    border-bottom: 1px solid #f0f0f0;
+                    font-size: 14px;
+                  `;
+
+                  // Store data attributes (CRITICAL: use normalized value!)
+                  item.dataset.type = suggestion.type;
+                  item.dataset.value = suggestion.value;  // Normalized (UPPERCASE, no accents)
+                  item.dataset.display = suggestion.display;
+                  item.dataset.originalName = suggestion.originalName;
+
+                  // Hover effect
+                  item.addEventListener('mouseenter', function() {
+                    this.style.background = '#f0f0f0';
+                  });
+                  item.addEventListener('mouseleave', function() {
+                    this.style.background = 'white';
+                  });
+
+                  // Click handler
+                  item.addEventListener('click', function() {
+                    const type = this.dataset.type;
+                    const value = this.dataset.value;
+                    const originalName = this.dataset.originalName;
+
+                    console.log('[iNat] Selected:', type, value, '(original:', originalName + ')');
+
+                    // Add to appropriate filter array
+                    if (type === 'species') {
+                      if (!currentFilters.species.includes(value)) {
+                        currentFilters.species.push(value);
+                      }
+                    } else if (type === 'location') {
+                      if (!currentFilters.location.includes(value)) {
+                        currentFilters.location.push(value);
+                      }
+                    }
+
+                    // Clear input
+                    unifiedSearch.value = '';
+                    dropdown.style.display = 'none';
+
+                    // Reload observations
+                    currentPage = 1;
+                    fetchObservations();
+                  });
+
+                  dropdown.appendChild(item);
+                });
+
+                dropdown.style.display = 'block';
+              });
+
+              // Hide dropdown when clicking outside
+              document.addEventListener('click', function(e) {
+                if (!wrapper.contains(e.target)) {
+                  dropdown.style.display = 'none';
+                }
+              });
+
+              // Hide dropdown on Escape key
+              unifiedSearch.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                  dropdown.style.display = 'none';
+                }
+              });
+
+              console.log('[iNat] Combined autocomplete attached successfully');
+            })
+            .catch(err => {
+              console.error('[iNat] Failed to load autocomplete data:', err);
+            });
           }
         })
         .catch(e => {
@@ -774,174 +939,6 @@
     };
   }
 
-  // Helper: Attach combined autocomplete (species + locations with emoji indicators)
-  // TODO-BUG-002: Rebuilt from scratch with unified normalization
-  function attachCombinedAutocomplete(input) {
-    console.log('[iNat] Attaching combined autocomplete...');
-
-    // Create dropdown container
-    const dropdown = document.createElement('div');
-    dropdown.className = 'inat-autocomplete-dropdown';
-    dropdown.style.cssText = `
-      position: absolute;
-      background: white;
-      border: 1px solid #ddd;
-      border-top: none;
-      max-height: 300px;
-      overflow-y: auto;
-      z-index: 10000;
-      display: none;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      left: 0;
-      right: 0;
-      width: 100%;
-    `;
-
-    // Wrap input in relative container
-    const wrapper = document.createElement('div');
-    wrapper.style.position = 'relative';
-    wrapper.style.display = 'inline-block';
-    wrapper.style.width = '100%';
-    input.parentNode.insertBefore(wrapper, input);
-    wrapper.appendChild(input);
-    wrapper.appendChild(dropdown);
-
-    // Load autocomplete data (both species and locations)
-    Promise.all([
-      fetch(inatObsSettings.ajaxUrl + '?action=inat_obs_autocomplete&field=species&nonce=' + inatObsSettings.nonce)
-        .then(r => r.json()),
-      fetch(inatObsSettings.ajaxUrl + '?action=inat_obs_autocomplete&field=location&nonce=' + inatObsSettings.nonce)
-        .then(r => r.json())
-    ])
-    .then(([speciesRes, locationRes]) => {
-      const speciesData = speciesRes.success ? speciesRes.data.suggestions : [];
-      const locationData = locationRes.success ? locationRes.data.suggestions : [];
-
-      console.log('[iNat] Loaded autocomplete:', speciesData.length, 'species,', locationData.length, 'locations');
-
-      // Combine both with type indicators
-      const allSuggestions = [
-        ...speciesData.map(s => ({
-          type: 'species',
-          display: s.common_name + (s.scientific_name ? ' (' + s.scientific_name + ')' : ''),
-          value: s.normalized_value,
-          originalName: s.common_name
-        })),
-        ...locationData.map(l => ({
-          type: 'location',
-          display: l.display,
-          value: l.normalized_value,
-          originalName: l.display
-        }))
-      ];
-
-      // Handle input events
-      input.addEventListener('input', function() {
-        const query = this.value.toLowerCase().trim();
-
-        if (!query) {
-          dropdown.style.display = 'none';
-          return;
-        }
-
-        // Filter suggestions (search in display text)
-        const filtered = allSuggestions.filter(s =>
-          s.display.toLowerCase().includes(query)
-        );
-
-        if (filtered.length === 0) {
-          dropdown.style.display = 'none';
-          return;
-        }
-
-        // Limit to 50 results
-        const limited = filtered.slice(0, 50);
-
-        // Render dropdown
-        dropdown.innerHTML = '';
-        limited.forEach(suggestion => {
-          const item = document.createElement('div');
-          item.className = 'inat-autocomplete-item';
-
-          // Emoji indicator
-          const emoji = suggestion.type === 'species' ? '🦎' : '📍';
-
-          item.innerHTML = emoji + ' ' + escapeHtml(suggestion.display);
-          item.style.cssText = `
-            padding: 10px;
-            cursor: pointer;
-            border-bottom: 1px solid #f0f0f0;
-            font-size: 14px;
-          `;
-
-          // Store data attributes (CRITICAL: use normalized value!)
-          item.dataset.type = suggestion.type;
-          item.dataset.value = suggestion.value;  // Normalized (UPPERCASE, no accents)
-          item.dataset.display = suggestion.display;
-          item.dataset.originalName = suggestion.originalName;
-
-          // Hover effect
-          item.addEventListener('mouseenter', function() {
-            this.style.background = '#f0f0f0';
-          });
-          item.addEventListener('mouseleave', function() {
-            this.style.background = 'white';
-          });
-
-          // Click handler
-          item.addEventListener('click', function() {
-            const type = this.dataset.type;
-            const value = this.dataset.value;
-            const originalName = this.dataset.originalName;
-
-            console.log('[iNat] Selected:', type, value, '(original:', originalName + ')');
-
-            // Add to appropriate filter array
-            if (type === 'species') {
-              if (!currentFilters.species.includes(value)) {
-                currentFilters.species.push(value);
-              }
-            } else if (type === 'location') {
-              if (!currentFilters.location.includes(value)) {
-                currentFilters.location.push(value);
-              }
-            }
-
-            // Clear input
-            input.value = '';
-            dropdown.style.display = 'none';
-
-            // Reload observations
-            currentPage = 1;
-            fetchObservations();
-          });
-
-          dropdown.appendChild(item);
-        });
-
-        dropdown.style.display = 'block';
-      });
-
-      // Hide dropdown when clicking outside
-      document.addEventListener('click', function(e) {
-        if (!wrapper.contains(e.target)) {
-          dropdown.style.display = 'none';
-        }
-      });
-
-      // Hide dropdown on Escape key
-      input.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-          dropdown.style.display = 'none';
-        }
-      });
-
-      console.log('[iNat] Combined autocomplete attached successfully');
-    })
-    .catch(err => {
-      console.error('[iNat] Failed to load autocomplete data:', err);
-    });
-  }
 
   // Helper: Attach autocomplete dropdown to an input
   function attachAutocomplete(input, field, cache, onSelectCallback) {
