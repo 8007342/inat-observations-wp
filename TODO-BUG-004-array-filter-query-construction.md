@@ -1,9 +1,11 @@
 # TODO-BUG-004: Array Filter Query Construction
 
 **Created:** 2026-01-07
-**Status:** 🚨 CRITICAL
-**Priority:** URGENT
+**Completed:** 2026-01-07
+**Status:** ✅ FIXED
+**Priority:** URGENT (WAS)
 **Related:** TODO-BUG-002 (Dropdown Selector), TODO-003 (DNA Filter Debug)
+**Commits:** 3f0aca3 (Query IN clause), ab524a9 (Autocomplete caching)
 
 ---
 
@@ -273,13 +275,13 @@ Result: Amanita observations + observations with no species identified
 ## Implementation Steps
 
 1. ✅ Create this TODO file
-2. ⏳ Fix query construction in rest.php (use IN clause)
-3. ⏳ Prevent autocomplete reload in main.js
-4. ⏳ Test single value filters
-5. ⏳ Test multi-value filters
-6. ⏳ Test combined filters
-7. ⏳ Verify no autocomplete API calls on selection
-8. ⏳ Commit and push fix
+2. ✅ Fix query construction in rest.php (use IN clause) - commit 3f0aca3
+3. ✅ Prevent autocomplete reload in main.js - commit ab524a9
+4. ✅ Test single value filters - all unit tests pass
+5. ✅ Test multi-value filters - all unit tests pass
+6. ✅ Test combined filters - all unit tests pass
+7. ✅ Verify no autocomplete API calls on selection - fixed via caching
+8. ✅ Commit and push fix - both commits pushed to main
 
 ---
 
@@ -309,5 +311,77 @@ Result: Amanita observations + observations with no species identified
 3. ✅ Multi-value filters work: `species=["AMANITA","CHANTERELLE"]`
 4. ✅ Combined filters work: `species + location + DNA`
 5. ✅ SQL uses IN clause for array filters
-6. ✅ All unit tests pass
-7. ✅ Browser testing confirms correct filtering
+6. ✅ All unit tests pass (61/61)
+7. ⏳ Browser testing confirms correct filtering (pending user testing)
+
+---
+
+## Fix Summary
+
+### Commit 3f0aca3: Query Construction (rest.php)
+
+**Changed:** Species and location filters now use SQL IN clause instead of OR conditions
+
+**Before:**
+```sql
+WHERE (UPPER(species_guess) = 'AMANITA' OR UPPER(species_guess) = 'CHANTERELLE')
+```
+
+**After:**
+```sql
+WHERE UPPER(species_guess) IN ('AMANITA', 'CHANTERELLE')
+```
+
+**Benefits:**
+- More efficient query execution
+- Cleaner SQL syntax
+- Better index utilization
+- Scales better with many filter values
+
+### Commit ab524a9: Autocomplete Caching (main.js)
+
+**Changed:** Autocomplete UI initialization moved outside of `fetchObservations()`
+
+**Before:**
+- Autocomplete setup ran inside `fetchObservations()`
+- Every filter change triggered autocomplete API calls
+- UI was rebuilt on every render
+
+**After:**
+- Autocomplete setup runs once via `initializeAutocomplete()`
+- Waits for `autocompleteCache` to load
+- UI persists across filter changes
+- Zero autocomplete API calls after page load
+
+**Implementation:**
+```javascript
+// Load cache once
+loadAutocomplete('species');
+loadAutocomplete('location');
+
+// Wait for cache, then initialize UI
+Promise.all([...]).then(() => {
+  initializeAutocomplete();  // Run once, uses cached data
+});
+
+// fetchObservations() no longer touches autocomplete
+fetchObservations();  // Only fetches observation results
+```
+
+**Result:** Selecting dropdown items only calls `fetchObservations()` (expected), not autocomplete endpoint (bug fixed).
+
+---
+
+## Testing Results
+
+All 61 unit tests passing, including:
+- ✅ Single value filters (species, location)
+- ✅ Multi-value filters (IN clause with multiple values)
+- ✅ Combined filters (species + location + DNA)
+- ✅ "Unknown Species" special case
+- ✅ Cache TTL differences (filtered vs unfiltered)
+- ✅ Pagination metadata
+- ✅ SQL injection prevention
+- ✅ Input sanitization
+
+**Next Step:** User browser testing to verify autocomplete doesn't reload and filters work correctly.
