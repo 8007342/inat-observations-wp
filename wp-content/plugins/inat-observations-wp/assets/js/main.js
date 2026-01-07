@@ -168,52 +168,20 @@
             textFiltersVisible = true;
           }
 
-          // Filter bar - Unified search with DNA checkbox (invisible frame for positioning, mobile-optimized)
-          let filterHtml = '<div id="inat-filter-bar" style="margin-bottom: 15px; padding: 12px; border: 1px solid transparent; border-radius: 4px; background: transparent; max-width: 100%; position: relative; z-index: 100000; box-sizing: border-box;">';
-
-          // Main filter row: DNA checkbox + unified search input
-          filterHtml += '<div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: 100%; position: relative;">';
+          // Unified controls bar: DNA checkbox + search + view toggle + pagination (all same level)
+          let controlsHtml = '<div id="inat-controls" style="margin-bottom: 20px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; max-width: 100%; overflow-x: auto; position: relative; z-index: 100000; box-sizing: border-box;">';
 
           // DNA checkbox (compact - just emoji, no text for mobile)
-          filterHtml += '<label style="display: flex; align-items: center; gap: 6px; font-size: 20px; cursor: pointer; padding: 6px 10px; background: white; border: 2px solid ' + (currentFilters.hasDNA ? '#2271b1' : '#ddd') + '; border-radius: 4px; transition: all 0.2s;">';
-          filterHtml += '<input type="checkbox" id="inat-filter-dna" ' + (currentFilters.hasDNA ? 'checked' : '') + ' style="width: 18px; height: 18px; cursor: pointer;">';
-          filterHtml += '<span style="line-height: 1;">🧬</span>';
-          filterHtml += '</label>';
+          controlsHtml += '<label style="display: flex; align-items: center; gap: 6px; font-size: 20px; cursor: pointer; padding: 6px 10px; background: white; border: 2px solid ' + (currentFilters.hasDNA ? '#2271b1' : '#ddd') + '; border-radius: 4px; transition: all 0.2s;">';
+          controlsHtml += '<input type="checkbox" id="inat-filter-dna" ' + (currentFilters.hasDNA ? 'checked' : '') + ' style="width: 18px; height: 18px; cursor: pointer;">';
+          controlsHtml += '<span style="line-height: 1;">🧬</span>';
+          controlsHtml += '</label>';
 
           // Unified search input (for both species and locations)
-          filterHtml += '<div style="position: relative; flex: 1; min-width: 200px; max-width: 100%; overflow: visible; z-index: 100001;">';
-          filterHtml += '<input type="text" id="inat-unified-search" placeholder="Search species or location..." style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box;">';
-          filterHtml += '</div>';
+          controlsHtml += '<div style="position: relative; flex: 1; min-width: 200px; max-width: 400px; overflow: visible; z-index: 100001;">';
+          controlsHtml += '<input type="text" id="inat-unified-search" placeholder="Search species or location..." style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box;">';
+          controlsHtml += '</div>';
 
-          filterHtml += '</div>';
-
-          // Chips row (only visible when filters are active)
-          const hasActiveFilters = currentFilters.species.length > 0 || currentFilters.location.length > 0;
-          if (hasActiveFilters) {
-            filterHtml += '<div style="display: flex; gap: 5px; align-items: center; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">';
-
-            // Species chips (blue with clipboard emoji)
-            currentFilters.species.forEach(name => {
-              filterHtml += '<span class="inat-chip" data-field="species" data-value="' + escapeHtml(name) + '" style="display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; background: #2271b1; color: white; border-radius: 16px; font-size: 13px; cursor: default;">';
-              filterHtml += '📋 ' + escapeHtml(name);
-              filterHtml += '<button class="inat-chip-remove" style="background: none; border: none; color: white; cursor: pointer; padding: 0; width: 18px; height: 18px; line-height: 1; font-size: 18px; margin-left: 2px;">×</button>';
-              filterHtml += '</span>';
-            });
-
-            // Location chips (green with location emoji)
-            currentFilters.location.forEach(name => {
-              filterHtml += '<span class="inat-chip" data-field="location" data-value="' + escapeHtml(name) + '" style="display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; background: #2d7f3a; color: white; border-radius: 16px; font-size: 13px; cursor: default;">';
-              filterHtml += '📍 ' + escapeHtml(name);
-              filterHtml += '<button class="inat-chip-remove" style="background: none; border: none; color: white; cursor: pointer; padding: 0; width: 18px; height: 18px; line-height: 1; font-size: 18px; margin-left: 2px;">×</button>';
-              filterHtml += '</span>';
-            });
-
-            filterHtml += '</div>';
-          }
-
-          filterHtml += '</div>';
-
-          let controlsHtml = '<div id="inat-controls" style="margin-bottom: 20px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; max-width: 100%; overflow-x: auto; position: relative; z-index: 1;">';
 
           // View toggle
           controlsHtml += '<div style="display: flex; gap: 5px; border: 1px solid #ddd; border-radius: 4px; overflow: hidden;">';
@@ -263,11 +231,18 @@
             const hasPrev = currentPage > 1;
             const hasNext = currentPage < totalPages;
 
+            // First button
+            if (currentPage > 1) {
+              controlsHtml += '<button id="inat-first" style="padding: 5px 10px; cursor: pointer; border: 1px solid #ddd; background: white; border-radius: 3px;">First</button>';
+            } else {
+              controlsHtml += '<button disabled style="padding: 5px 10px; cursor: not-allowed; border: 1px solid #ddd; background: #f5f5f5; color: #ccc; border-radius: 3px;">First</button>';
+            }
+
             // Previous button
             if (hasPrev) {
-              controlsHtml += '<button id="inat-prev" style="padding: 5px 10px; cursor: pointer; border: 1px solid #ddd; background: white; border-radius: 3px;">←</button>';
+              controlsHtml += '<button id="inat-prev" style="padding: 5px 10px; cursor: pointer; border: 1px solid #ddd; background: white; border-radius: 3px;">Prev</button>';
             } else {
-              controlsHtml += '<button disabled style="padding: 5px 10px; cursor: not-allowed; border: 1px solid #ddd; background: #f5f5f5; color: #ccc; border-radius: 3px;">←</button>';
+              controlsHtml += '<button disabled style="padding: 5px 10px; cursor: not-allowed; border: 1px solid #ddd; background: #f5f5f5; color: #ccc; border-radius: 3px;">Prev</button>';
             }
 
             // Page numbers (responsive - show max 7 buttons on desktop, 5 on mobile)
@@ -285,16 +260,48 @@
 
             // Next button
             if (hasNext) {
-              controlsHtml += '<button id="inat-next" style="padding: 5px 10px; cursor: pointer; border: 1px solid #ddd; background: white; border-radius: 3px;">→</button>';
+              controlsHtml += '<button id="inat-next" style="padding: 5px 10px; cursor: pointer; border: 1px solid #ddd; background: white; border-radius: 3px;">Next</button>';
             } else {
-              controlsHtml += '<button disabled style="padding: 5px 10px; cursor: not-allowed; border: 1px solid #ddd; background: #f5f5f5; color: #ccc; border-radius: 3px;">→</button>';
+              controlsHtml += '<button disabled style="padding: 5px 10px; cursor: not-allowed; border: 1px solid #ddd; background: #f5f5f5; color: #ccc; border-radius: 3px;">Next</button>';
+            }
+
+            // Last button
+            if (currentPage < totalPages) {
+              controlsHtml += '<button id="inat-last" style="padding: 5px 10px; cursor: pointer; border: 1px solid #ddd; background: white; border-radius: 3px;">Last</button>';
+            } else {
+              controlsHtml += '<button disabled style="padding: 5px 10px; cursor: not-allowed; border: 1px solid #ddd; background: #f5f5f5; color: #ccc; border-radius: 3px;">Last</button>';
             }
 
             controlsHtml += '</div>';
           }
 
-          controlsHtml += '<div style="margin-left: auto; color: #666;">Showing ' + startIndex + '-' + endIndex + ' of ' + totalResults + '+ observations</div>';
+          controlsHtml += '<div style="margin-left: auto; color: #666;">Showing ' + startIndex + '-' + endIndex + ' of ' + totalResults + ' observations</div>';
           controlsHtml += '</div>';
+
+          // Filter chips row (shown below controls when filters are active)
+          let filterChipsHtml = '';
+          const hasActiveFilters = currentFilters.species.length > 0 || currentFilters.location.length > 0;
+          if (hasActiveFilters) {
+            filterChipsHtml += '<div style="display: flex; gap: 5px; align-items: center; flex-wrap: wrap; margin-bottom: 15px; padding: 10px; background: #f9f9f9; border-radius: 4px;">';
+
+            // Species chips (blue with clipboard emoji)
+            currentFilters.species.forEach(name => {
+              filterChipsHtml += '<span class="inat-chip" data-field="species" data-value="' + escapeHtml(name) + '" style="display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; background: #2271b1; color: white; border-radius: 16px; font-size: 13px; cursor: default;">';
+              filterChipsHtml += '📋 ' + escapeHtml(name);
+              filterChipsHtml += '<button class="inat-chip-remove" style="background: none; border: none; color: white; cursor: pointer; padding: 0; width: 18px; height: 18px; line-height: 1; font-size: 18px; margin-left: 2px;">×</button>';
+              filterChipsHtml += '</span>';
+            });
+
+            // Location chips (green with location emoji)
+            currentFilters.location.forEach(name => {
+              filterChipsHtml += '<span class="inat-chip" data-field="location" data-value="' + escapeHtml(name) + '" style="display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; background: #2d7f3a; color: white; border-radius: 16px; font-size: 13px; cursor: default;">';
+              filterChipsHtml += '📍 ' + escapeHtml(name);
+              filterChipsHtml += '<button class="inat-chip-remove" style="background: none; border: none; color: white; cursor: pointer; padding: 0; width: 18px; height: 18px; line-height: 1; font-size: 18px; margin-left: 2px;">×</button>';
+              filterChipsHtml += '</span>';
+            });
+
+            filterChipsHtml += '</div>';
+          }
 
           // Render observations (grid or list view)
           let html = '';
@@ -387,8 +394,8 @@
             html += '</div>';
           }
 
-          // Render: filterHtml + controlsHtml + (noResultsMessage OR html)
-          listContainer.innerHTML = filterHtml + controlsHtml + (noResultsMessage || html);
+          // Render: controlsHtml + filterChipsHtml + (noResultsMessage OR html)
+          listContainer.innerHTML = controlsHtml + filterChipsHtml + (noResultsMessage || html);
 
           // Attach event handlers
           const perPageSelect = document.getElementById('inat-per-page');
@@ -431,6 +438,22 @@
                 currentPage++;
                 fetchObservations();
               }
+            });
+          }
+
+          const firstBtn = document.getElementById('inat-first');
+          if (firstBtn) {
+            firstBtn.addEventListener('click', function() {
+              currentPage = 1;
+              fetchObservations();
+            });
+          }
+
+          const lastBtn = document.getElementById('inat-last');
+          if (lastBtn) {
+            lastBtn.addEventListener('click', function() {
+              currentPage = totalPages;
+              fetchObservations();
             });
           }
 
