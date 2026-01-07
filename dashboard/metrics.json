@@ -1,13 +1,13 @@
 {
-    "generated": "2026-01-07T03:02:29+00:00",
-    "git_commit": "684fb29",
+    "generated": "2026-01-07T03:17:40+00:00",
+    "git_commit": "8e49939",
     "coverage": {
         "status": "success",
-        "line_percentage": 38.81,
+        "line_percentage": 41.79,
         "function_percentage": 0,
         "class_percentage": 0,
         "total_lines": 335,
-        "covered_lines": 130,
+        "covered_lines": 140,
         "total_methods": 0,
         "covered_methods": 0,
         "total_classes": 0,
@@ -38,20 +38,12 @@
                 "status": "warning"
             },
             {
-                "file": "db-schema.php",
-                "path": "wp-content/plugins/inat-observations-wp/includes/db-schema.php",
-                "line_coverage": 72,
-                "total_lines": 25,
-                "covered_lines": 18,
-                "status": "warning"
-            },
-            {
                 "file": "rest.php",
                 "path": "wp-content/plugins/inat-observations-wp/includes/rest.php",
-                "line_coverage": 79.55,
+                "line_coverage": 86.36,
                 "total_lines": 44,
-                "covered_lines": 35,
-                "status": "warning"
+                "covered_lines": 38,
+                "status": "good"
             },
             {
                 "file": "api.php",
@@ -60,6 +52,14 @@
                 "total_lines": 42,
                 "covered_lines": 40,
                 "status": "good"
+            },
+            {
+                "file": "db-schema.php",
+                "path": "wp-content/plugins/inat-observations-wp/includes/db-schema.php",
+                "line_coverage": 100,
+                "total_lines": 25,
+                "covered_lines": 25,
+                "status": "excellent"
             }
         ]
     },

@@ -7,6 +7,12 @@
  * 2. Unit tests: Brain\Monkey mocking, no WordPress (tests/unit/)
  */
 
+// Load WordPress constants and functions FIRST (before any code is loaded)
+// CRITICAL: Must be loaded before autoloader to ensure they're available
+// during code coverage analysis and test execution
+require_once __DIR__ . '/wp-constants.php';
+require_once __DIR__ . '/wp-functions.php';
+
 // Load Composer autoloader for Brain\Monkey and Mockery
 $autoloader = dirname(__DIR__) . '/vendor/autoload.php';
 if (file_exists($autoloader)) {
@@ -28,80 +34,8 @@ if ($is_unit_test) {
     // Brain\Monkey and Mockery are loaded via Composer autoloader
     // Individual test files will call Brain\Monkey\setUp() and tearDown()
 
-    // Define WordPress constants
-    if (!defined('ABSPATH')) {
-        define('ABSPATH', '/tmp/wordpress/');
-    }
-    if (!defined('ARRAY_A')) {
-        define('ARRAY_A', 'ARRAY_A');
-    }
-    if (!defined('ARRAY_N')) {
-        define('ARRAY_N', 'ARRAY_N');
-    }
-    if (!defined('OBJECT')) {
-        define('OBJECT', 'OBJECT');
-    }
-    if (!defined('OBJECT_K')) {
-        define('OBJECT_K', 'OBJECT_K');
-    }
-
-    // Define WordPress functions needed for coverage processing
-    // These are called when files are loaded for coverage analysis
-    if (!function_exists('plugin_dir_path')) {
-        function plugin_dir_path($file) {
-            return dirname($file) . '/';
-        }
-    }
-    if (!function_exists('plugin_dir_url')) {
-        function plugin_dir_url($file) {
-            return 'http://example.com/wp-content/plugins/' . basename(dirname($file)) . '/';
-        }
-    }
-    if (!function_exists('register_activation_hook')) {
-        function register_activation_hook($file, $function) {
-            // Stub for coverage processing
-        }
-    }
-    if (!function_exists('register_deactivation_hook')) {
-        function register_deactivation_hook($file, $function) {
-            // Stub for coverage processing
-        }
-    }
-    if (!function_exists('add_shortcode')) {
-        function add_shortcode($tag, $callback) {
-            // Stub for coverage processing
-        }
-    }
-    if (!function_exists('add_action')) {
-        function add_action($hook, $callback, $priority = 10, $accepted_args = 1) {
-            // Stub for coverage processing
-        }
-    }
-    if (!function_exists('add_filter')) {
-        function add_filter($hook, $callback, $priority = 10, $accepted_args = 1) {
-            // Stub for coverage processing
-        }
-    }
-    if (!function_exists('register_rest_route')) {
-        function register_rest_route($namespace, $route, $args = []) {
-            // Stub for coverage processing
-        }
-    }
-    if (!function_exists('register_setting')) {
-        function register_setting($option_group, $option_name, $args = []) {
-            // Stub for coverage processing
-        }
-    }
-    if (!function_exists('add_settings_section')) {
-        function add_settings_section($id, $title, $callback, $page) {
-            // Stub for coverage processing
-        }
-    }
-    if (!function_exists('add_settings_field')) {
-        function add_settings_field($id, $title, $callback, $page, $section, $args = []) {
-            // Stub for coverage processing
-        }
-    }
+    // WordPress constants and functions are loaded from wp-constants.php and wp-functions.php
+    // at the top of this bootstrap file
 
 } else {
     /*

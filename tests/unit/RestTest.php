@@ -41,9 +41,7 @@ class RestTest extends PHPUnit\Framework\TestCase {
         // Mock wpdb
         $wpdb = Mockery::mock('wpdb');
         $wpdb->prefix = 'wp_';
-        $wpdb->shouldReceive('prepare')->andReturnUsing(function($sql, ...$args) {
-            return vsprintf(str_replace(['%d', '%s'], ['%d', "'%s'"], $sql), $args);
-        });
+        $wpdb->shouldReceive('prepare')->andReturn('SELECT * FROM wp_inat_observations');
         $wpdb->shouldReceive('get_results')->andReturn([
             ['id' => 1, 'species_guess' => 'Test Species', 'metadata' => '{}']
         ]);
