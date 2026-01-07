@@ -5,9 +5,13 @@
     add_shortcode('inat_observations', 'inat_obs_shortcode_render');
 
     function inat_obs_shortcode_render($atts = []) {
-        // TODO: accept attributes like project, per_page, filters
+        // Get defaults from plugin settings
+        $default_project = get_option('inat_obs_project_id', INAT_OBS_DEFAULT_PROJECT_ID);
+
+        // Merge shortcode attributes with defaults
+        // Shortcode attributes override plugin settings for flexibility
         $atts = shortcode_atts([
-            'project' => getenv('INAT_PROJECT_SLUG') ?: 'project_slug_here',
+            'project' => $default_project,
             'per_page' => 50,
         ], $atts, 'inat_observations');
 
@@ -15,10 +19,12 @@
         wp_enqueue_script('inat-observations-main', plugin_dir_url(__FILE__) . '/../assets/js/main.js', ['jquery'], INAT_OBS_VERSION, true);
         wp_enqueue_style('inat-observations-css', plugin_dir_url(__FILE__) . '/../assets/css/main.css', [], INAT_OBS_VERSION);
 
-        // Localize script with AJAX URL and nonce for security
+        // Localize script with AJAX URL, nonce, and initial settings for security
         wp_localize_script('inat-observations-main', 'inatObsSettings', [
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce'   => wp_create_nonce('inat_obs_fetch'),
+            'project' => $atts['project'],
+            'perPage' => $atts['per_page'],
         ]);
 
         // Minimal render. JS will enhance filters.

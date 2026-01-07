@@ -41,31 +41,56 @@
             return;
         }
 
-        // Build query args
-        $args = ['per_page' => 200, 'page' => 1];
-        if (!empty($user_id)) {
-            $args['user_id'] = $user_id;
-        }
-        if (!empty($project_id)) {
-            $args['project'] = $project_id;
-        }
+        // Pagination loop to fetch ALL observations
+        $page = 1;
+        $per_page = 200; // Max allowed by iNaturalist API
+        $total_fetched = 0;
 
-        // Fetch observations
-        $data = inat_obs_fetch_observations($args);
-        if (is_wp_error($data)) {
-            error_log('iNat Observations: API fetch failed - ' . $data->get_error_message());
-            return;
-        }
+        do {
+            // Build query args for current page
+            $args = ['per_page' => $per_page, 'page' => $page];
+            if (!empty($user_id)) {
+                $args['user_id'] = $user_id;
+            }
+            if (!empty($project_id)) {
+                $args['project'] = $project_id;
+            }
 
-        // Store in database
-        inat_obs_store_items($data);
+            // Fetch observations from iNaturalist API
+            $data = inat_obs_fetch_observations($args);
+            if (is_wp_error($data)) {
+                error_log('iNat Observations: API fetch failed on page ' . $page . ' - ' . $data->get_error_message());
+                break;
+            }
 
-        // Log success
-        $count = count($data['results'] ?? []);
+            // Store in database (uses REPLACE for upserts)
+            inat_obs_store_items($data);
+
+            $results_count = count($data['results'] ?? []);
+            $total_fetched += $results_count;
+
+            error_log("iNat Observations: Fetched page $page - $results_count observations");
+
+            // Check if there are more pages
+            // iNaturalist API: if results < per_page, we're on the last page
+            if ($results_count < $per_page) {
+                break;
+            }
+
+            $page++;
+
+            // Rate limiting: sleep 1 second between requests (be polite to iNat API)
+            if ($results_count === $per_page) {
+                sleep(1);
+            }
+
+        } while (true);
+
+        // Log success with total count
         update_option('inat_obs_last_refresh', current_time('mysql'));
-        update_option('inat_obs_last_refresh_count', $count);
+        update_option('inat_obs_last_refresh_count', $total_fetched);
 
-        error_log("iNat Observations: Refresh completed - fetched $count observations");
+        error_log("iNat Observations: Refresh completed - fetched $total_fetched observations across $page page(s)");
     }
 
     // Security headers (S-LOW-002)
