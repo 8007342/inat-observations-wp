@@ -37,6 +37,9 @@ if ($is_unit_test) {
     // WordPress constants and functions are loaded from wp-constants.php and wp-functions.php
     // at the top of this bootstrap file
 
+    // TODO-BUG-002: Load helpers.php for normalization functions
+    require_once dirname(__DIR__) . '/wp-content/plugins/inat-observations-wp/includes/helpers.php';
+
 } else {
     /*
      * Integration Test Mode: Full WordPress Environment

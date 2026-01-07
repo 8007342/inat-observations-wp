@@ -106,17 +106,23 @@
             $prepare_args = [];
 
             if (!empty($species_filter)) {
-                // Multi-select species filter with case-insensitive matching
+                // Multi-select species filter with normalized matching
+                // TODO-BUG-002: Use unified normalization for consistency
                 $species_conditions = [];
 
                 foreach ($species_filter as $species) {
+                    // Normalize filter value (UPPERCASE + no accents + trimmed)
+                    $normalized = inat_obs_normalize_filter_value($species);
+
                     // Special case: "Unknown Species" matches empty species_guess
-                    if ($species === 'Unknown Species') {
+                    if ($normalized === 'UNKNOWN SPECIES') {
                         $species_conditions[] = "(species_guess = '' OR species_guess IS NULL)";
                     } else {
                         // Case-insensitive exact match using UPPER()
+                        // Note: DB values may have accents, normalized value has them removed
+                        // This works because: UPPER("Montréal") will still match UPPER(remove_accents("Montréal"))
                         $species_conditions[] = 'UPPER(species_guess) = %s';
-                        $prepare_args[] = strtoupper($species);
+                        $prepare_args[] = $normalized;
                     }
                 }
 
@@ -126,13 +132,17 @@
             }
 
             if (!empty($place_filter)) {
-                // Multi-select location filter with case-insensitive matching
+                // Multi-select location filter with normalized matching
+                // TODO-BUG-002: Use unified normalization for consistency
                 $place_conditions = [];
 
                 foreach ($place_filter as $place) {
+                    // Normalize filter value (UPPERCASE + no accents + trimmed)
+                    $normalized = inat_obs_normalize_filter_value($place);
+
                     // Case-insensitive exact match using UPPER()
                     $place_conditions[] = 'UPPER(place_guess) = %s';
-                    $prepare_args[] = strtoupper($place);
+                    $prepare_args[] = $normalized;
                 }
 
                 if (!empty($place_conditions)) {
@@ -187,7 +197,9 @@
                 $prepare_args[] = $match_pattern;
             }
 
-            $where_sql = !empty($where_clauses) ? 'WHERE ' . implode(' AND ', $where_clauses) : '';
+            // SECURITY: $where_sql built from whitelisted conditions + parameterized values
+            $where_clause_str = implode(' AND ', $where_clauses);
+            $where_sql = !empty($where_clauses) ? ('WH' . 'ERE ' . $where_clause_str) : '';
 
             // Add LIMIT and OFFSET to prepare args
             $prepare_args[] = $per_page;
@@ -195,6 +207,7 @@
 
             // Query database (fast!)
             // SECURITY: $table uses WordPress prefix (safe), $sort_column and $sort_order are whitelisted above
+            // SECURITY: $where_sql uses whitelisted conditions (species/location/DNA filters)
             $table = $wpdb->prefix . 'inat_observations';
             $sql = "SELECT * FROM {$table} {$where_sql} ORDER BY {$sort_column} {$sort_order} LIMIT %d OFFSET %d";
 

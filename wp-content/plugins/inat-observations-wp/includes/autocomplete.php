@@ -3,23 +3,34 @@
 if (!defined('ABSPATH')) exit;
 
 /**
- * Get distinct species list (cached).
+ * Get distinct species list (cached) with normalized values.
  *
  * CRITICAL: This query is EXPENSIVE (DISTINCT + ORDER BY on large dataset).
  * Result is cached for 1 hour to avoid repeated table scans.
  * Cache is invalidated when observations are refreshed.
  *
- * @return array List of species names
+ * Returns array of associative arrays with:
+ * - common_name: Display name (original case, accents preserved)
+ * - scientific_name: Binomial nomenclature
+ * - normalized_value: UPPERCASE, no accents, trimmed (for query matching)
+ *
+ * TODO-BUG-002: normalized_value ensures consistent dropdown/query matching
+ *
+ * @return array List of species with display and normalized values
  */
 function inat_obs_get_species_autocomplete() {
     // Try cache first (Tlatoani's performance directive)
-    // v2: Now returns structured data with common_name and scientific_name
-    $cache_key = 'inat_obs_species_autocomplete_v2';
+    // v3: Now includes normalized_value for TODO-BUG-002 fix
+    $cache_key = 'inat_obs_species_autocomplete_v3';
     $species = get_transient($cache_key);
 
     if ($species !== false) {
         // Cache hit - prepend "Unknown Species" and return
-        array_unshift($species, ['common_name' => 'Unknown Species', 'scientific_name' => '']);
+        array_unshift($species, [
+            'common_name' => 'Unknown Species',
+            'scientific_name' => '',
+            'normalized_value' => 'UNKNOWN SPECIES'
+        ]);
         error_log('iNat Autocomplete: Species list from cache (' . count($species) . ' items)');
         return $species;
     }
@@ -31,7 +42,6 @@ function inat_obs_get_species_autocomplete() {
     $start_time = microtime(true);
 
     // Query distinct species with taxon names (EXPENSIVE!)
-    // Returns array of objects with both common and scientific names
     $results = $wpdb->get_results("
         SELECT DISTINCT
             species_guess as common_name,
@@ -44,9 +54,13 @@ function inat_obs_get_species_autocomplete() {
 
     $query_time = microtime(true) - $start_time;
 
+    // Add normalized_value to each result (TODO-BUG-002)
+    foreach ($results as &$result) {
+        $result['normalized_value'] = inat_obs_normalize_filter_value($result['common_name']);
+    }
+    unset($result);  // Break reference
+
     // Cache autocomplete results
-    // Development mode: use shorter cache TTL if configured (for manual testing)
-    // Set via: define('INAT_OBS_DEV_CACHE_TTL', 30); in wp-config.php
     $cache_ttl = defined('INAT_OBS_DEV_CACHE_TTL') ? absint(INAT_OBS_DEV_CACHE_TTL) : HOUR_IN_SECONDS;
     set_transient($cache_key, $results, $cache_ttl);
 
@@ -57,16 +71,29 @@ function inat_obs_get_species_autocomplete() {
     ));
 
     // Prepend "Unknown Species" as special filter value
-    array_unshift($results, ['common_name' => 'Unknown Species', 'scientific_name' => '']);
+    array_unshift($results, [
+        'common_name' => 'Unknown Species',
+        'scientific_name' => '',
+        'normalized_value' => 'UNKNOWN SPECIES'
+    ]);
 
     return $results;
 }
 
 /**
- * Get distinct location list (cached).
+ * Get distinct location list (cached) with normalized values.
+ *
+ * Returns array of associative arrays with:
+ * - display: Display name (original case, accents preserved)
+ * - normalized_value: UPPERCASE, no accents, trimmed (for query matching)
+ *
+ * TODO-BUG-002: normalized_value ensures consistent dropdown/query matching
+ *
+ * @return array List of locations with display and normalized values
  */
 function inat_obs_get_location_autocomplete() {
-    $cache_key = 'inat_obs_location_autocomplete_v1';
+    // v2: Now includes normalized_value for TODO-BUG-002 fix
+    $cache_key = 'inat_obs_location_autocomplete_v2';
     $locations = get_transient($cache_key);
 
     if ($locations !== false) {
@@ -79,6 +106,7 @@ function inat_obs_get_location_autocomplete() {
 
     $start_time = microtime(true);
 
+    // Get distinct locations (original case preserved)
     $results = $wpdb->get_col("
         SELECT DISTINCT place_guess
         FROM $table
@@ -89,17 +117,26 @@ function inat_obs_get_location_autocomplete() {
 
     $query_time = microtime(true) - $start_time;
 
+    // Transform to structured format with normalized values (TODO-BUG-002)
+    $structured_results = [];
+    foreach ($results as $location) {
+        $structured_results[] = [
+            'display' => $location,
+            'normalized_value' => inat_obs_normalize_filter_value($location)
+        ];
+    }
+
     // Cache autocomplete results (same TTL config as species)
     $cache_ttl = defined('INAT_OBS_DEV_CACHE_TTL') ? absint(INAT_OBS_DEV_CACHE_TTL) : HOUR_IN_SECONDS;
-    set_transient($cache_key, $results, $cache_ttl);
+    set_transient($cache_key, $structured_results, $cache_ttl);
 
     error_log(sprintf(
         'iNat Autocomplete: Generated location list (%d items, %.2fms) - cached for 1 hour',
-        count($results),
+        count($structured_results),
         $query_time * 1000
     ));
 
-    return $results;
+    return $structured_results;
 }
 
 /**

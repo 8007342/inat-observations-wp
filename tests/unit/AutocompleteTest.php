@@ -38,10 +38,11 @@ class AutocompleteTest extends PHPUnit\Framework\TestCase {
      * Test species autocomplete returns cached data
      */
     public function test_get_species_autocomplete_uses_cache() {
+        // TODO-BUG-002: Mock data now includes normalized_value
         $cached_species = [
-            ['common_name' => 'Robin', 'scientific_name' => 'Turdus migratorius'],
-            ['common_name' => 'Sparrow', 'scientific_name' => 'Passer domesticus'],
-            ['common_name' => 'Eagle', 'scientific_name' => 'Aquila chrysaetos']
+            ['common_name' => 'Robin', 'scientific_name' => 'Turdus migratorius', 'normalized_value' => 'ROBIN'],
+            ['common_name' => 'Sparrow', 'scientific_name' => 'Passer domesticus', 'normalized_value' => 'SPARROW'],
+            ['common_name' => 'Eagle', 'scientific_name' => 'Aquila chrysaetos', 'normalized_value' => 'EAGLE']
         ];
 
         Functions\when('get_transient')->justReturn($cached_species);
@@ -49,9 +50,18 @@ class AutocompleteTest extends PHPUnit\Framework\TestCase {
         $result = inat_obs_get_species_autocomplete();
 
         // Should return cached data with "Unknown Species" prepended
+        // TODO-BUG-002: Now includes normalized_value field
         $this->assertCount(4, $result);
-        $this->assertEquals(['common_name' => 'Unknown Species', 'scientific_name' => ''], $result[0]);
-        $this->assertEquals(['common_name' => 'Robin', 'scientific_name' => 'Turdus migratorius'], $result[1]);
+        $this->assertEquals([
+            'common_name' => 'Unknown Species',
+            'scientific_name' => '',
+            'normalized_value' => 'UNKNOWN SPECIES'
+        ], $result[0]);
+        $this->assertEquals([
+            'common_name' => 'Robin',
+            'scientific_name' => 'Turdus migratorius',
+            'normalized_value' => 'ROBIN'
+        ], $result[1]);
     }
 
     /**
@@ -74,9 +84,18 @@ class AutocompleteTest extends PHPUnit\Framework\TestCase {
         $result = inat_obs_get_species_autocomplete();
 
         // Should query database and prepend "Unknown Species"
+        // TODO-BUG-002: Now includes normalized_value field
         $this->assertCount(4, $result);
-        $this->assertEquals(['common_name' => 'Unknown Species', 'scientific_name' => ''], $result[0]);
-        $this->assertEquals(['common_name' => 'Hummingbird', 'scientific_name' => 'Archilochus colubris'], $result[1]);
+        $this->assertEquals([
+            'common_name' => 'Unknown Species',
+            'scientific_name' => '',
+            'normalized_value' => 'UNKNOWN SPECIES'
+        ], $result[0]);
+        $this->assertEquals([
+            'common_name' => 'Hummingbird',
+            'scientific_name' => 'Archilochus colubris',
+            'normalized_value' => 'HUMMINGBIRD'
+        ], $result[1]);
     }
 
     /**
@@ -129,15 +148,20 @@ class AutocompleteTest extends PHPUnit\Framework\TestCase {
      * Test location autocomplete returns cached data
      */
     public function test_get_location_autocomplete_uses_cache() {
-        $cached_locations = ['California', 'Oregon', 'Washington'];
+        // TODO-BUG-002: Location cache now returns structured format
+        $cached_locations = [
+            ['display' => 'California', 'normalized_value' => 'CALIFORNIA'],
+            ['display' => 'Oregon', 'normalized_value' => 'OREGON'],
+            ['display' => 'Washington', 'normalized_value' => 'WASHINGTON']
+        ];
 
         Functions\when('get_transient')->justReturn($cached_locations);
 
         $result = inat_obs_get_location_autocomplete();
 
-        // Should return cached data
+        // Should return cached data with structured format
         $this->assertCount(3, $result);
-        $this->assertEquals('California', $result[0]);
+        $this->assertEquals(['display' => 'California', 'normalized_value' => 'CALIFORNIA'], $result[0]);
     }
 
     /**
@@ -155,9 +179,9 @@ class AutocompleteTest extends PHPUnit\Framework\TestCase {
 
         $result = inat_obs_get_location_autocomplete();
 
-        // Should query database
+        // Should query database and return structured format (TODO-BUG-002)
         $this->assertCount(3, $result);
-        $this->assertEquals('Seattle', $result[0]);
+        $this->assertEquals(['display' => 'Seattle', 'normalized_value' => 'SEATTLE'], $result[0]);
     }
 
     /**
@@ -187,8 +211,8 @@ class AutocompleteTest extends PHPUnit\Framework\TestCase {
         Functions\when('check_ajax_referer')->justReturn(true);
         Functions\when('sanitize_text_field')->returnArg();
         Functions\when('get_transient')->justReturn([
-            ['common_name' => 'Robin', 'scientific_name' => 'Turdus migratorius'],
-            ['common_name' => 'Sparrow', 'scientific_name' => 'Passer domesticus']
+            ['common_name' => 'Robin', 'scientific_name' => 'Turdus migratorius', 'normalized_value' => 'ROBIN'],
+            ['common_name' => 'Sparrow', 'scientific_name' => 'Passer domesticus', 'normalized_value' => 'SPARROW']
         ]);
 
         $sent_json = null;
@@ -203,7 +227,7 @@ class AutocompleteTest extends PHPUnit\Framework\TestCase {
         $this->assertIsArray($sent_json['suggestions']);
         // Should have "Unknown Species" prepended
         $this->assertCount(3, $sent_json['suggestions']);
-        $this->assertEquals(['common_name' => 'Unknown Species', 'scientific_name' => ''], $sent_json['suggestions'][0]);
+        $this->assertEquals(['common_name' => 'Unknown Species', 'scientific_name' => '', 'normalized_value' => 'UNKNOWN SPECIES'], $sent_json['suggestions'][0]);
     }
 
     /**
@@ -214,7 +238,10 @@ class AutocompleteTest extends PHPUnit\Framework\TestCase {
 
         Functions\when('check_ajax_referer')->justReturn(true);
         Functions\when('sanitize_text_field')->returnArg();
-        Functions\when('get_transient')->justReturn(['Seattle', 'Portland']);
+        Functions\when('get_transient')->justReturn([
+            ['display' => 'Seattle', 'normalized_value' => 'SEATTLE'],
+            ['display' => 'Portland', 'normalized_value' => 'PORTLAND']
+        ]);
 
         $sent_json = null;
         Functions\when('wp_send_json_success')->alias(function($data) use (&$sent_json) {

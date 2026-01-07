@@ -48,6 +48,45 @@ if (!function_exists('add_filter')) {
     }
 }
 
+if (!function_exists('remove_accents')) {
+    /**
+     * Remove accents from a string (WordPress function stub for testing).
+     *
+     * Converts accented characters to their non-accented equivalents.
+     * Simplified implementation for testing - WordPress has more comprehensive handling.
+     *
+     * @param string $string Text to remove accents from
+     * @return string Text with accents removed
+     */
+    function remove_accents($string) {
+        // Simple accent removal for common cases (TODO-BUG-002)
+        // This is a simplified version - WordPress has more comprehensive handling
+        $chars = [
+            // Decompositions for Latin-1 Supplement
+            'ª' => 'a', 'º' => 'o',
+            'À' => 'A', 'Á' => 'A', 'Â' => 'A', 'Ã' => 'A', 'Ä' => 'A', 'Å' => 'A',
+            'Æ' => 'AE', 'Ç' => 'C',
+            'È' => 'E', 'É' => 'E', 'Ê' => 'E', 'Ë' => 'E',
+            'Ì' => 'I', 'Í' => 'I', 'Î' => 'I', 'Ï' => 'I',
+            'Ð' => 'D', 'Ñ' => 'N',
+            'Ò' => 'O', 'Ó' => 'O', 'Ô' => 'O', 'Õ' => 'O', 'Ö' => 'O', 'Ø' => 'O',
+            'Ù' => 'U', 'Ú' => 'U', 'Û' => 'U', 'Ü' => 'U',
+            'Ý' => 'Y',
+            'Þ' => 'TH', 'ß' => 'ss',
+            'à' => 'a', 'á' => 'a', 'â' => 'a', 'ã' => 'a', 'ä' => 'a', 'å' => 'a',
+            'æ' => 'ae', 'ç' => 'c',
+            'è' => 'e', 'é' => 'e', 'ê' => 'e', 'ë' => 'e',
+            'ì' => 'i', 'í' => 'i', 'î' => 'i', 'ï' => 'i',
+            'ð' => 'd', 'ñ' => 'n',
+            'ò' => 'o', 'ó' => 'o', 'ô' => 'o', 'õ' => 'o', 'ö' => 'o', 'ø' => 'o',
+            'ù' => 'u', 'ú' => 'u', 'û' => 'u', 'ü' => 'u',
+            'ý' => 'y', 'þ' => 'th', 'ÿ' => 'y',
+        ];
+
+        return strtr($string, $chars);
+    }
+}
+
 if (!function_exists('register_rest_route')) {
     function register_rest_route($namespace, $route, $args = []) {
         // Stub for coverage processing

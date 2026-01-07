@@ -3,6 +3,7 @@
     if (!defined('ABSPATH')) exit;
 
     // Load helpers
+    require_once plugin_dir_path(__DIR__) . 'includes/helpers.php';  // TODO-BUG-002: Unified normalization
     require_once plugin_dir_path(__DIR__) . 'includes/api.php';
     require_once plugin_dir_path(__DIR__) . 'includes/db-schema.php';
     require_once plugin_dir_path(__DIR__) . 'includes/shortcode.php';
@@ -194,7 +195,8 @@
         // Query total observation count from database
         global $wpdb;
         $table = $wpdb->prefix . 'inat_observations';
-        $total_in_db = intval($wpdb->get_var("SELECT COUNT(*) FROM $table"));
+        // SECURITY: $table uses WordPress prefix + hardcoded table name (safe)
+        $total_in_db = intval($wpdb->get_var("SELECT COUNT(*) FROM {$table}"));
 
         // Update WordPress options
         update_option('inat_obs_last_refresh', current_time('mysql'));
