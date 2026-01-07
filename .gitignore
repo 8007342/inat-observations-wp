@@ -19,12 +19,12 @@ composer.lock
 /.phpunit.result.cache
 
 # Dashboard artifacts (static build outputs)
-/dashboard/coverage/
 /dashboard/history/
-# Keep README.md and metrics in git
+# Keep README.md, metrics, and coverage HTML in git
 !/dashboard/README.md
 !/dashboard/metrics.json
 !/dashboard/metrics.md
+!/dashboard/coverage/
 
 # WordPress test library
 /tmp/wordpress-tests-lib/
