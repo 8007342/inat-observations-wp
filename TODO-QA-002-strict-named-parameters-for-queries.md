@@ -123,75 +123,106 @@ Check for any interpolation patterns
 
 ---
 
-## Integration Tests Required
+## Integration Tests ✅ WRITTEN
 
-### Test 1: SQL Injection Attempt via field_property
-```php
-public function test_malicious_field_property_rejected() {
-    // Attempt to inject SQL via admin option
-    update_option('inat_obs_dna_field_property', "name'; DROP TABLE wp_inat_observations; --");
+**File:** `tests/integration/test-sql-injection-prevention.php`
 
-    $request = new WP_REST_Request('GET', '/inat/v1/observations');
-    $request->set_param('has_dna', '1');
+**Status:** Tests written but require WordPress test environment setup.
+Currently skipped in CI. Will be enabled once WP test lib is configured.
 
-    $response = inat_obs_rest_get_observations($request);
+**Tests Implemented:**
 
-    // Should NOT execute malicious SQL
-    // Should fall back to safe default 'name'
-    $this->assertArrayHasKey('results', $response);
+### 1. test_field_property_sql_injection_blocked() ✅
+- Attempts SQL injection via `inat_obs_dna_field_property` option
+- Verifies table is not dropped
+- Verifies whitelist validation prevents execution
 
-    // Verify table still exists
-    global $wpdb;
-    $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$wpdb->prefix}inat_observations'");
-    $this->assertNotNull($table_exists);
-}
-```
+### 2. test_sort_parameter_sql_injection_blocked() ✅
+- Attempts SQL injection via `sort` parameter
+- Verifies fallback to safe default
+- Verifies table integrity maintained
 
-### Test 2: SQL Injection via sort parameter
-```php
-public function test_malicious_sort_parameter_rejected() {
-    $request = new WP_REST_Request('GET', '/inat/v1/observations');
-    $request->set_param('sort', "date; DROP TABLE wp_inat_observations; --");
-    $request->set_param('order', 'desc');
+### 3. test_order_parameter_sql_injection_blocked() ✅
+- Attempts SQL injection via `order` parameter
+- Verifies whitelist validation
 
-    $response = inat_obs_rest_get_observations($request);
+### 4. test_only_whitelisted_sort_columns_allowed() ✅
+- Tests all valid sort columns (date, species, location, taxon)
+- Tests invalid inputs fall back to default
+- Tests malicious inputs are blocked
 
-    // Should fall back to safe default 'observed_on'
-    $this->assertArrayHasKey('results', $response);
-}
-```
+### 5. test_only_whitelisted_field_properties_allowed() ✅
+- Tests valid field_property options (name, value, datatype)
+- Tests invalid inputs fall back to 'name'
+- Tests malicious inputs cannot execute
 
-### Test 3: Whitelist validation
-```php
-public function test_only_whitelisted_columns_allowed() {
-    $test_cases = [
-        ['sort' => 'date', 'expected_column' => 'observed_on'],
-        ['sort' => 'species', 'expected_column' => 'species_guess'],
-        ['sort' => 'INVALID', 'expected_column' => 'observed_on'],  // Falls back
-        ['sort' => 'id; DROP TABLE', 'expected_column' => 'observed_on'],  // Falls back
-    ];
+### 6. test_union_sql_injection_blocked() ✅
+- Attempts UNION-based injection
+- Verifies parameterization prevents UNION attacks
 
-    foreach ($test_cases as $case) {
-        // Test that only whitelisted columns are used
-    }
-}
-```
+### 7. test_boolean_blind_sql_injection_blocked() ✅
+- Attempts boolean-based blind injection (OR '1'='1)
+- Verifies no data leakage
+
+### 8. test_time_based_sql_injection_blocked() ✅
+- Attempts time-based injection (SLEEP)
+- Verifies query completes quickly
+
+### 9. test_stacked_query_injection_blocked() ✅
+- Attempts stacked query injection (multiple statements)
+- Verifies data integrity maintained
+
+### 10. test_error_based_sql_injection_blocked() ✅
+- Attempts error-based injection
+- Verifies no SQL error messages leaked
+
+**Total:** 10 comprehensive SQL injection tests
+
+**Requirements:**
+- WordPress test environment (WP_UnitTestCase)
+- WordPress test database
+- Install guide: https://make.wordpress.org/cli/handbook/misc/plugin-unit-tests/
+
+**Next Steps:**
+- [ ] Set up WordPress test environment
+- [ ] Enable integration tests in CI
+- [ ] Run tests before each release
 
 ---
 
 ## Pre-Commit Checks
 
-### Static Analysis Rule
+### Static Analysis Rules ✅ IMPLEMENTED
+
+Added to `.git/hooks/pre-commit`:
+
 ```bash
-# Add to pre-commit hook
-grep -r "WHERE.*\$" includes/ && echo "ERROR: Potential SQL interpolation detected" && exit 1
-grep -r "SELECT.*\$" includes/ && echo "ERROR: Potential SQL interpolation detected" && exit 1
+# Pattern 1: Unbraced variable in SELECT statement
+grep -n 'SELECT.*\$[a-zA-Z_]' "$file" | grep -v '{' | grep -v '//.*SELECT'
+
+# Pattern 2: Unbraced variable in WHERE statement
+grep -n 'WHERE.*\$[a-zA-Z_]' "$file" | grep -v '{' | grep -v '//.*WHERE' | grep -v '%s' | grep -v '%d'
+
+# Pattern 3: get_option() result used in SQL without whitelist validation
+# Checks for variables from get_option() used in SQL without in_array() validation
 ```
 
-### PHPStan/Psalm Rules
+**Features:**
+- Scans all modified PHP files (excludes tests/ and vendor/)
+- Detects unbraced variables in SELECT/WHERE clauses
+- Warns about get_option() results used in SQL without whitelists
+- Provides actionable error messages with file:line references
+- Points to TODO-QA-002 for guidelines
+- Commit aborted on critical findings
+
+**Status:** ✅ Active in all commits
+
+### PHPStan/Psalm Rules (Future)
 - Detect string concatenation in SQL contexts
 - Require all `$wpdb->prepare()` calls to use placeholders
 - Flag any variables in SQL strings that aren't clearly validated
+
+**Priority:** LOW (pre-commit checks cover most cases)
 
 ---
 
