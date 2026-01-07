@@ -60,8 +60,15 @@ if [ ! -d "/tmp/wordpress-tests-lib" ] && [ -z "$WP_TESTS_DIR" ]; then
 
     # Run unit tests only (with Brain\Monkey, no WordPress needed)
     cd "$PROJECT_ROOT"
-    TEST_TYPE=unit ./vendor/bin/phpunit tests/unit/
-    exit 0
+    echo ""
+    echo "Running unit tests with command:"
+    echo "  TEST_TYPE=unit ./vendor/bin/phpunit tests/unit/"
+    echo ""
+    TEST_TYPE=unit ./vendor/bin/phpunit tests/unit/ -v
+    exit_code=$?
+    echo ""
+    echo "Exit code: $exit_code"
+    exit $exit_code
 fi
 
 # Run all tests (integration + unit)

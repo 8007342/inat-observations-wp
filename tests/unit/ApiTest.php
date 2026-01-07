@@ -22,6 +22,15 @@ class Test_Inat_API extends PHPUnit\Framework\TestCase {
         parent::setUp();
         Monkey\setUp();
 
+        // Set environment variables directly instead of mocking
+        putenv('CACHE_LIFETIME=3600');
+        putenv('INAT_API_TOKEN=');
+
+        // Define WordPress constants that the plugin checks
+        if (!defined('ABSPATH')) {
+            define('ABSPATH', '/tmp/wordpress/');
+        }
+
         // Load the file being tested
         require_once dirname(__DIR__, 2) . '/wp-content/plugins/inat-observations-wp/includes/api.php';
     }
@@ -62,14 +71,6 @@ class Test_Inat_API extends PHPUnit\Framework\TestCase {
         Functions\when('wp_remote_retrieve_response_code')->justReturn(200);
         Functions\when('wp_remote_retrieve_body')->justReturn(json_encode($fixture));
 
-        // Mock getenv
-        Functions\when('getenv')->alias(function($key) {
-            return [
-                'CACHE_LIFETIME' => '3600',
-                'INAT_API_TOKEN' => null,
-            ][$key] ?? false;
-        });
-
         $result = inat_obs_fetch_observations(['project' => 'test-project']);
 
         $this->assertIsArray($result);
@@ -89,7 +90,9 @@ class Test_Inat_API extends PHPUnit\Framework\TestCase {
         $wp_error->shouldReceive('get_error_message')->andReturn('Connection timeout');
 
         Functions\when('wp_remote_get')->justReturn($wp_error);
-        Functions\when('is_wp_error')->with($wp_error)->andReturn(true);
+        Functions\when('is_wp_error')->alias(function($arg) use ($wp_error) {
+            return $arg === $wp_error;
+        });
 
         $result = inat_obs_fetch_observations(['project' => 'test-project']);
 
@@ -152,10 +155,6 @@ class Test_Inat_API extends PHPUnit\Framework\TestCase {
         Functions\when('wp_remote_retrieve_response_code')->justReturn(200);
         Functions\when('wp_remote_retrieve_body')->justReturn('{invalid json}');
 
-        Functions\when('getenv')->alias(function($key) {
-            return ['CACHE_LIFETIME' => '3600'][$key] ?? false;
-        });
-
         $result = inat_obs_fetch_observations(['project' => 'test-project']);
 
         // Should return null (json_decode failure) or empty array
@@ -199,7 +198,6 @@ class Test_Inat_API extends PHPUnit\Framework\TestCase {
         Functions\when('is_wp_error')->justReturn(false);
         Functions\when('wp_remote_retrieve_response_code')->justReturn(200);
         Functions\when('wp_remote_retrieve_body')->justReturn(json_encode(['results' => []]));
-        Functions\when('getenv')->justReturn('3600');
 
         inat_obs_fetch_observations(['project' => 'my-project']);
 
@@ -226,7 +224,6 @@ class Test_Inat_API extends PHPUnit\Framework\TestCase {
         Functions\when('is_wp_error')->justReturn(false);
         Functions\when('wp_remote_retrieve_response_code')->justReturn(200);
         Functions\when('wp_remote_retrieve_body')->justReturn(json_encode(['results' => []]));
-        Functions\when('getenv')->justReturn('3600');
 
         inat_obs_fetch_observations(['user_id' => 'user123']);
 
@@ -253,7 +250,6 @@ class Test_Inat_API extends PHPUnit\Framework\TestCase {
         Functions\when('is_wp_error')->justReturn(false);
         Functions\when('wp_remote_retrieve_response_code')->justReturn(200);
         Functions\when('wp_remote_retrieve_body')->justReturn(json_encode(['results' => []]));
-        Functions\when('getenv')->justReturn('3600');
 
         inat_obs_fetch_observations(['page' => 2, 'per_page' => 50]);
 
@@ -265,6 +261,9 @@ class Test_Inat_API extends PHPUnit\Framework\TestCase {
      * Test fetch with API token adds Authorization header
      */
     public function test_fetch_with_api_token() {
+        // Set API token for this test
+        putenv('INAT_API_TOKEN=secret_token_123');
+
         Functions\when('get_transient')->justReturn(false);
         Functions\when('set_transient')->justReturn(true);
 
@@ -281,25 +280,24 @@ class Test_Inat_API extends PHPUnit\Framework\TestCase {
         Functions\when('is_wp_error')->justReturn(false);
         Functions\when('wp_remote_retrieve_response_code')->justReturn(200);
         Functions\when('wp_remote_retrieve_body')->justReturn(json_encode(['results' => []]));
-
-        Functions\when('getenv')->alias(function($key) {
-            return [
-                'INAT_API_TOKEN' => 'secret_token_123',
-                'CACHE_LIFETIME' => '3600',
-            ][$key] ?? false;
-        });
 
         inat_obs_fetch_observations(['project' => 'test']);
 
         $this->assertArrayHasKey('headers', $captured_args);
         $this->assertArrayHasKey('Authorization', $captured_args['headers']);
         $this->assertEquals('Bearer secret_token_123', $captured_args['headers']['Authorization']);
+
+        // Reset for other tests
+        putenv('INAT_API_TOKEN=');
     }
 
     /**
      * Test fetch without API token (no Authorization header)
      */
     public function test_fetch_without_api_token() {
+        // Ensure no API token is set (already done in setUp, but explicit here)
+        putenv('INAT_API_TOKEN=');
+
         Functions\when('get_transient')->justReturn(false);
         Functions\when('set_transient')->justReturn(true);
 
@@ -316,10 +314,6 @@ class Test_Inat_API extends PHPUnit\Framework\TestCase {
         Functions\when('is_wp_error')->justReturn(false);
         Functions\when('wp_remote_retrieve_response_code')->justReturn(200);
         Functions\when('wp_remote_retrieve_body')->justReturn(json_encode(['results' => []]));
-
-        Functions\when('getenv')->alias(function($key) {
-            return ['CACHE_LIFETIME' => '3600'][$key] ?? false;
-        });
 
         inat_obs_fetch_observations(['project' => 'test']);
 
@@ -347,7 +341,6 @@ class Test_Inat_API extends PHPUnit\Framework\TestCase {
         Functions\when('is_wp_error')->justReturn(false);
         Functions\when('wp_remote_retrieve_response_code')->justReturn(200);
         Functions\when('wp_remote_retrieve_body')->justReturn(json_encode(['results' => []]));
-        Functions\when('getenv')->justReturn('3600');
 
         inat_obs_fetch_observations(); // No args
 

@@ -16,13 +16,14 @@
             <directory suffix=".php">./integration</directory>
         </testsuite>
     </testsuites>
-    <filter>
-        <whitelist processUncoveredFilesFromWhitelist="true">
+    <coverage processUncoveredFiles="true">
+        <include>
             <directory suffix=".php">../wp-content/plugins/inat-observations-wp/includes</directory>
-            <file>../wp-content/plugins/inat-observations-wp/inat-observations-wp.php</file>
-        </whitelist>
-    </filter>
+        </include>
+    </coverage>
+    <!-- Uncomment to use WordPress test library for integration tests
     <php>
         <env name="WP_TESTS_DIR" value="/tmp/wordpress-tests-lib" />
     </php>
+    -->
 </phpunit>

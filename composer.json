@@ -22,8 +22,8 @@
         "mockery/mockery": "^1.5"
     },
     "scripts": {
-        "test": "phpunit",
-        "test:coverage": "phpunit --coverage-html dashboard/coverage --coverage-clover dashboard/coverage/clover.xml",
+        "test": "TEST_TYPE=unit phpunit -c tests/phpunit.xml --testsuite Unit",
+        "test:coverage": "TEST_TYPE=unit php -d pcov.enabled=1 vendor/bin/phpunit -c tests/phpunit.xml --testsuite Unit --coverage-html dashboard/coverage --coverage-clover dashboard/coverage/clover.xml",
         "lint": "phpcs --standard=WordPress wp-content/plugins/inat-observations-wp/",
         "lint:fix": "phpcbf --standard=WordPress wp-content/plugins/inat-observations-wp/",
         "metrics:generate": "php bin/generate-metrics.php",
