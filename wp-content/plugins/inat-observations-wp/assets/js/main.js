@@ -29,6 +29,8 @@
     let currentPerPage = inatObsSettings.perPage || 50;
     let totalResults = 0;
     let totalPages = 1;
+    let currentSort = 'date';  // 'date', 'species', 'location', 'taxon'
+    let currentOrder = 'desc';  // 'asc', 'desc'
     let currentFilters = {
       species: [],  // Array of species names (multi-select)
       location: [],  // Array of location names (multi-select)
@@ -68,6 +70,11 @@
         url.searchParams.set('has_dna', '1');
         console.log('[iNat] Adding DNA filter to URL');
       }
+
+      // Add sort parameters
+      url.searchParams.set('sort', currentSort);
+      url.searchParams.set('order', currentOrder);
+      console.log('[iNat] Adding sort params:', currentSort, currentOrder);
 
       console.log('[iNat] Final fetch URL:', url.toString());
       console.log('[iNat] Current filters state:', JSON.parse(JSON.stringify(currentFilters)));
@@ -203,6 +210,29 @@
             const selected = (opt === String(currentPerPage)) ? 'selected' : '';
             controlsHtml += '<option value="' + escapeHtml(opt) + '" ' + selected + '>' + (opt === 'all' ? 'All' : opt) + '</option>';
           });
+          controlsHtml += '</select>';
+          controlsHtml += '</div>';
+
+          // Sort selector
+          controlsHtml += '<div>';
+          controlsHtml += '<label for="inat-sort" style="margin-right: 5px;">Sort by:</label>';
+          controlsHtml += '<select id="inat-sort" style="padding: 5px;">';
+
+          const sortOptions = [
+            { value: 'date-desc', label: 'Date (Latest)', sort: 'date', order: 'desc' },
+            { value: 'date-asc', label: 'Date (Oldest)', sort: 'date', order: 'asc' },
+            { value: 'species-asc', label: 'Species (A-Z)', sort: 'species', order: 'asc' },
+            { value: 'species-desc', label: 'Species (Z-A)', sort: 'species', order: 'desc' },
+            { value: 'location-asc', label: 'Location (A-Z)', sort: 'location', order: 'asc' },
+            { value: 'location-desc', label: 'Location (Z-A)', sort: 'location', order: 'desc' }
+          ];
+
+          const currentSortValue = currentSort + '-' + currentOrder;
+          sortOptions.forEach(opt => {
+            const selected = (opt.value === currentSortValue) ? 'selected' : '';
+            controlsHtml += '<option value="' + escapeHtml(opt.value) + '" ' + selected + '>' + escapeHtml(opt.label) + '</option>';
+          });
+
           controlsHtml += '</select>';
           controlsHtml += '</div>';
 
@@ -350,6 +380,20 @@
             });
           }
 
+          const sortSelect = document.getElementById('inat-sort');
+          if (sortSelect) {
+            sortSelect.addEventListener('change', function() {
+              const parts = this.value.split('-');
+              if (parts.length === 2) {
+                currentSort = parts[0];
+                currentOrder = parts[1];
+                currentPage = 1;
+                console.log('[iNat] Sort changed via dropdown:', currentSort, currentOrder);
+                fetchObservations();
+              }
+            });
+          }
+
           const prevBtn = document.getElementById('inat-prev');
           if (prevBtn) {
             prevBtn.addEventListener('click', function() {
@@ -398,6 +442,27 @@
               fetchObservations();
             });
           }
+
+          // Sortable column headers (LIST VIEW only)
+          const sortableHeaders = document.querySelectorAll('th[data-sort]');
+          sortableHeaders.forEach(header => {
+            header.addEventListener('click', function() {
+              const column = this.getAttribute('data-sort');
+              if (column) {
+                handleSortClick(column);
+              }
+            });
+
+            // Add hover effect
+            header.addEventListener('mouseenter', function() {
+              if (currentSort !== this.getAttribute('data-sort')) {
+                this.style.background = '#f0f0f0';
+              }
+            });
+            header.addEventListener('mouseleave', function() {
+              this.style.background = '';
+            });
+          });
 
           // DNA checkbox (THE STAR! 🧬)
           const dnaCheckbox = document.getElementById('inat-filter-dna');
@@ -805,19 +870,67 @@
     });
   }
 
+  // Get sort arrow indicator
+  function getSortArrow(column) {
+    if (currentSort === column) {
+      return currentOrder === 'asc' ? ' ↑' : ' ↓';
+    }
+    return ' ↕';  // Inactive column shows both arrows
+  }
+
+  // Handle sort column click
+  function handleSortClick(column) {
+    if (column === currentSort) {
+      // Toggle order if same column
+      currentOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+    } else {
+      // Switch to new column, default to ascending (except date defaults to descending)
+      currentSort = column;
+      currentOrder = column === 'date' ? 'desc' : 'asc';
+    }
+
+    console.log('[iNat] Sort changed:', currentSort, currentOrder);
+
+    // Reset to page 1 when sorting changes
+    currentPage = 1;
+
+    // Fetch with new sort
+    fetchObservations();
+  }
+
   // Render LIST VIEW - Table format
   function renderListView(results) {
     let html = '<div class="inat-list-view" style="overflow-x: auto;">';
     html += '<table style="width: 100%; border-collapse: collapse; background: #fff;">';
 
-    // Table header
+    // Table header with sortable columns
     html += '<thead>';
     html += '<tr style="background: #f9f9f9; border-bottom: 2px solid #ddd;">';
+
+    // Photo column (not sortable)
     html += '<th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600;">Photo</th>';
-    html += '<th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600;">Species</th>';
-    html += '<th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600;">Location</th>';
-    html += '<th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600;">Date</th>';
+
+    // Species column (sortable)
+    const speciesActive = currentSort === 'species';
+    html += '<th data-sort="species" style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600; cursor: pointer; user-select: none; ' + (speciesActive ? 'color: #2271b1;' : '') + '" title="Click to sort by species">';
+    html += 'Species' + getSortArrow('species');
+    html += '</th>';
+
+    // Location column (sortable)
+    const locationActive = currentSort === 'location';
+    html += '<th data-sort="location" style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600; cursor: pointer; user-select: none; ' + (locationActive ? 'color: #2271b1;' : '') + '" title="Click to sort by location">';
+    html += 'Location' + getSortArrow('location');
+    html += '</th>';
+
+    // Date column (sortable)
+    const dateActive = currentSort === 'date';
+    html += '<th data-sort="date" style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600; cursor: pointer; user-select: none; ' + (dateActive ? 'color: #2271b1;' : '') + '" title="Click to sort by date">';
+    html += 'Date' + getSortArrow('date');
+    html += '</th>';
+
+    // Actions column (not sortable)
     html += '<th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; font-weight: 600;">Actions</th>';
+
     html += '</tr>';
     html += '</thead>';
 
