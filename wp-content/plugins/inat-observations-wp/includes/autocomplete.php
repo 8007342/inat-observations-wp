@@ -145,8 +145,10 @@ function inat_obs_get_location_autocomplete() {
  */
 function inat_obs_invalidate_autocomplete_cache() {
     delete_transient('inat_obs_species_autocomplete_v1');  // Legacy
-    delete_transient('inat_obs_species_autocomplete_v2');  // Current
-    delete_transient('inat_obs_location_autocomplete_v1');
+    delete_transient('inat_obs_species_autocomplete_v2');  // Legacy
+    delete_transient('inat_obs_species_autocomplete_v3');  // Current (TODO-BUG-002)
+    delete_transient('inat_obs_location_autocomplete_v1');  // Legacy
+    delete_transient('inat_obs_location_autocomplete_v2');  // Current (TODO-BUG-002)
     error_log('iNat Autocomplete: Cache invalidated (will regenerate on next request)');
 }
 
