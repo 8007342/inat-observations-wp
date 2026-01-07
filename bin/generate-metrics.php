@@ -113,9 +113,16 @@ function parseCoverageXML($file) {
         if ($fileLines > 0) {
             $filePct = round(($fileCovered / $fileLines) * 100, 2);
 
+            // Convert absolute path to relative path (remove workspace prefix)
+            $relativePath = $filename;
+            $projectRoot = dirname(__DIR__);
+            if (strpos($filename, $projectRoot) === 0) {
+                $relativePath = substr($filename, strlen($projectRoot) + 1);
+            }
+
             $files[] = [
                 'file' => basename($filename),
-                'path' => $filename,
+                'path' => $relativePath,
                 'line_coverage' => $filePct,
                 'total_lines' => $fileLines,
                 'covered_lines' => $fileCovered,

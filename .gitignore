@@ -20,11 +20,11 @@ composer.lock
 
 # Dashboard artifacts (static build outputs)
 /dashboard/coverage/
-/dashboard/metrics.json
-/dashboard/metrics.md
 /dashboard/history/
-# Keep README.md in git
+# Keep README.md and metrics in git
 !/dashboard/README.md
+!/dashboard/metrics.json
+!/dashboard/metrics.md
 
 # WordPress test library
 /tmp/wordpress-tests-lib/
