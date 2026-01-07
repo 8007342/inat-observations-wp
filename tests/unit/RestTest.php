@@ -82,8 +82,17 @@ class RestTest extends PHPUnit\Framework\TestCase {
         $wpdb->prefix = 'wp_';
         $wpdb->last_error = '';
         $wpdb->shouldReceive('prepare')->andReturnUsing(function($sql, ...$args) use (&$captured_args) {
-            $captured_args = $args;
-            return vsprintf(str_replace(['%d', '%s'], ['%d', "'%s'"], $sql), $args);
+            // Handle array args (prepare can receive an array)
+            $flat_args = [];
+            foreach ($args as $arg) {
+                if (is_array($arg)) {
+                    $flat_args = array_merge($flat_args, $arg);
+                } else {
+                    $flat_args[] = $arg;
+                }
+            }
+            $captured_args = $flat_args;
+            return vsprintf(str_replace(['%d', '%s'], ['%d', "'%s'"], $sql), $flat_args);
         });
         $wpdb->shouldReceive('get_results')->andReturn([]);
         $wpdb->shouldReceive('get_var')->andReturn(100); // Total count for pagination
@@ -114,7 +123,16 @@ class RestTest extends PHPUnit\Framework\TestCase {
         $wpdb->last_error = '';
         $captured_limit = null;
         $wpdb->shouldReceive('prepare')->andReturnUsing(function($sql, ...$args) use (&$captured_limit) {
-            $captured_limit = $args[0] ?? null;
+            // Handle array args (prepare can receive an array)
+            $flat_args = [];
+            foreach ($args as $arg) {
+                if (is_array($arg)) {
+                    $flat_args = array_merge($flat_args, $arg);
+                } else {
+                    $flat_args[] = $arg;
+                }
+            }
+            $captured_limit = $flat_args[0] ?? null;
             return $sql;
         });
         $wpdb->shouldReceive('get_results')->andReturn([]);
@@ -150,7 +168,16 @@ class RestTest extends PHPUnit\Framework\TestCase {
         $captured_sql = null;
         $wpdb->shouldReceive('prepare')->andReturnUsing(function($sql, ...$args) use (&$captured_sql) {
             $captured_sql = $sql;
-            return vsprintf(str_replace(['%d', '%s'], ['%d', "'%s'"], $sql), $args);
+            // Handle array args (prepare can receive an array)
+            $flat_args = [];
+            foreach ($args as $arg) {
+                if (is_array($arg)) {
+                    $flat_args = array_merge($flat_args, $arg);
+                } else {
+                    $flat_args[] = $arg;
+                }
+            }
+            return vsprintf(str_replace(['%d', '%s'], ['%d', "'%s'"], $sql), $flat_args);
         });
         $wpdb->shouldReceive('get_results')->andReturn([]);
         $wpdb->shouldReceive('get_var')->andReturn(25); // Total count
@@ -165,9 +192,9 @@ class RestTest extends PHPUnit\Framework\TestCase {
 
         inat_obs_rest_get_observations($request);
 
-        // Verify WHERE clause
+        // Verify WHERE clause - Updated for new API using UPPER() = instead of LIKE
         $this->assertStringContainsString('WHERE', $captured_sql);
-        $this->assertStringContainsString('species_guess LIKE', $captured_sql);
+        $this->assertStringContainsString('UPPER(species_guess) = %s', $captured_sql);
     }
 
     /**
@@ -203,8 +230,8 @@ class RestTest extends PHPUnit\Framework\TestCase {
 
         inat_obs_rest_get_observations($request);
 
-        // Verify WHERE clause
-        $this->assertStringContainsString('place_guess LIKE', $captured_sql);
+        // Verify WHERE clause - Updated for new API using UPPER() = instead of LIKE
+        $this->assertStringContainsString('UPPER(place_guess) = %s', $captured_sql);
     }
 
     /**
@@ -241,10 +268,10 @@ class RestTest extends PHPUnit\Framework\TestCase {
 
         inat_obs_rest_get_observations($request);
 
-        // Verify both filters in WHERE clause
-        $this->assertStringContainsString('species_guess LIKE', $captured_sql);
+        // Verify both filters in WHERE clause - Updated for new API using UPPER() = instead of LIKE
+        $this->assertStringContainsString('UPPER(species_guess) = %s', $captured_sql);
         $this->assertStringContainsString('AND', $captured_sql);
-        $this->assertStringContainsString('place_guess LIKE', $captured_sql);
+        $this->assertStringContainsString('UPPER(place_guess) = %s', $captured_sql);
     }
 
     /**

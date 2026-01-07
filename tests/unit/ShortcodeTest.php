@@ -17,17 +17,36 @@ class ShortcodeTest extends PHPUnit\Framework\TestCase {
         parent::setUp();
         Monkey\setUp();
 
+        // Define WordPress constants needed by shortcode.php
         if (!defined('ABSPATH')) {
             define('ABSPATH', '/tmp/wordpress/');
         }
+        if (!defined('ARRAY_A')) {
+            define('ARRAY_A', 'ARRAY_A');
+        }
         if (!defined('INAT_OBS_VERSION')) {
             define('INAT_OBS_VERSION', '1.0.0');
+        }
+        if (!defined('INAT_OBS_URL')) {
+            define('INAT_OBS_URL', 'http://example.com/wp-content/plugins/inat-observations-wp/');
+        }
+        if (!defined('INAT_OBS_DEFAULT_PROJECT_ID')) {
+            define('INAT_OBS_DEFAULT_PROJECT_ID', 'test-project');
         }
 
         // Set up environment
         putenv('INAT_PROJECT_SLUG=test-project');
 
-        // Load the file being tested
+        // Mock WordPress functions that are called at module load time
+        // Only mock if not already defined by another test
+        if (!function_exists('add_shortcode')) {
+            Functions\when('add_shortcode')->justReturn(true);
+        }
+        if (!function_exists('add_action')) {
+            Functions\when('add_action')->justReturn(true);
+        }
+
+        // Load the file being tested (require_once prevents multiple loads)
         require_once dirname(__DIR__, 2) . '/wp-content/plugins/inat-observations-wp/includes/shortcode.php';
     }
 
@@ -40,10 +59,14 @@ class ShortcodeTest extends PHPUnit\Framework\TestCase {
      * Test shortcode renders with default attributes
      */
     public function test_shortcode_render_default_attributes() {
+        Functions\when('get_option')->alias(function($key, $default = '') {
+            if ($key === 'inat_obs_project_id') return 'test-project';
+            if ($key === 'inat_obs_display_page_size') return '50';
+            return $default;
+        });
         Functions\expect('shortcode_atts')->andReturnUsing(function($defaults, $atts) {
             return array_merge($defaults, $atts);
         });
-        Functions\when('plugin_dir_url')->justReturn('http://example.com/wp-content/plugins/inat-observations-wp/includes/../');
         Functions\expect('wp_enqueue_script')->once();
         Functions\expect('wp_enqueue_style')->once();
         Functions\expect('wp_localize_script')->once();
@@ -64,10 +87,14 @@ class ShortcodeTest extends PHPUnit\Framework\TestCase {
      * Test shortcode accepts custom attributes
      */
     public function test_shortcode_render_custom_attributes() {
+        Functions\when('get_option')->alias(function($key, $default = '') {
+            if ($key === 'inat_obs_project_id') return 'default-project';
+            if ($key === 'inat_obs_display_page_size') return '25';
+            return $default;
+        });
         Functions\expect('shortcode_atts')->andReturnUsing(function($defaults, $atts) {
             return array_merge($defaults, $atts);
         });
-        Functions\when('plugin_dir_url')->justReturn('http://example.com/');
         Functions\expect('wp_enqueue_script')->once();
         Functions\expect('wp_enqueue_style')->once();
         Functions\expect('wp_localize_script')->once();
@@ -92,10 +119,14 @@ class ShortcodeTest extends PHPUnit\Framework\TestCase {
         $enqueued_script = null;
         $enqueued_style = null;
 
+        Functions\when('get_option')->alias(function($key, $default = '') {
+            if ($key === 'inat_obs_project_id') return 'test-project';
+            if ($key === 'inat_obs_display_page_size') return '50';
+            return $default;
+        });
         Functions\expect('shortcode_atts')->andReturnUsing(function($defaults, $atts) {
             return $defaults;
         });
-        Functions\when('plugin_dir_url')->justReturn('http://example.com/plugin/');
         Functions\expect('wp_enqueue_script')
             ->once()
             ->andReturnUsing(function($handle) use (&$enqueued_script) {
@@ -124,10 +155,14 @@ class ShortcodeTest extends PHPUnit\Framework\TestCase {
     public function test_shortcode_localizes_ajax_settings() {
         $localized_data = null;
 
+        Functions\when('get_option')->alias(function($key, $default = '') {
+            if ($key === 'inat_obs_project_id') return 'test-project';
+            if ($key === 'inat_obs_display_page_size') return '50';
+            return $default;
+        });
         Functions\expect('shortcode_atts')->andReturnUsing(function($defaults, $atts) {
             return $defaults;
         });
-        Functions\when('plugin_dir_url')->justReturn('http://example.com/');
         Functions\expect('wp_enqueue_script')->once();
         Functions\expect('wp_enqueue_style')->once();
         Functions\expect('wp_localize_script')
@@ -211,15 +246,25 @@ class ShortcodeTest extends PHPUnit\Framework\TestCase {
 
         Functions\when('check_ajax_referer')->justReturn(true);
         Functions\when('sanitize_text_field')->returnArg();
+        Functions\when('get_option')->justReturn('name'); // For DNA field config
 
         $wpdb = Mockery::mock('wpdb');
         $wpdb->prefix = 'wp_';
-        $captured_args = null;
+        $wpdb->last_error = '';
+        $captured_args = [];
         $wpdb->shouldReceive('prepare')->andReturnUsing(function($sql, ...$args) use (&$captured_args) {
-            $captured_args = $args;
+            // Handle array args (prepare can receive an array)
+            foreach ($args as $arg) {
+                if (is_array($arg)) {
+                    $captured_args = array_merge($captured_args, $arg);
+                } else {
+                    $captured_args[] = $arg;
+                }
+            }
             return $sql;
         });
         $wpdb->shouldReceive('get_results')->andReturn([]);
+        $wpdb->shouldReceive('get_var')->andReturn(100); // Total count
 
         $GLOBALS['wpdb'] = $wpdb;
 
@@ -238,18 +283,31 @@ class ShortcodeTest extends PHPUnit\Framework\TestCase {
      * Test AJAX fetch clamps per_page
      */
     public function test_ajax_fetch_clamps_per_page() {
-        $_GET['per_page'] = 500; // Should be clamped to 100
+        $_GET['per_page'] = 20000; // Should be clamped to 10000 (max limit in shortcode)
 
         Functions\when('check_ajax_referer')->justReturn(true);
+        Functions\when('sanitize_text_field')->returnArg(); // Add missing mock
+        Functions\when('get_option')->justReturn('name'); // For DNA field config
 
         $wpdb = Mockery::mock('wpdb');
         $wpdb->prefix = 'wp_';
+        $wpdb->last_error = '';
         $captured_limit = null;
         $wpdb->shouldReceive('prepare')->andReturnUsing(function($sql, ...$args) use (&$captured_limit) {
-            $captured_limit = $args[0] ?? null;
+            // Handle array args (prepare can receive an array)
+            $flat_args = [];
+            foreach ($args as $arg) {
+                if (is_array($arg)) {
+                    $flat_args = array_merge($flat_args, $arg);
+                } else {
+                    $flat_args[] = $arg;
+                }
+            }
+            $captured_limit = $flat_args[0] ?? null;
             return $sql;
         });
         $wpdb->shouldReceive('get_results')->andReturn([]);
+        $wpdb->shouldReceive('get_var')->andReturn(100); // Total count
 
         $GLOBALS['wpdb'] = $wpdb;
 
@@ -259,7 +317,7 @@ class ShortcodeTest extends PHPUnit\Framework\TestCase {
 
         inat_obs_ajax_fetch();
 
-        $this->assertEquals(100, $captured_limit);
+        $this->assertEquals(10000, $captured_limit); // Clamps to 10000, not 100
     }
 
     /**
