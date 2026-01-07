@@ -55,6 +55,12 @@
             'default' => '50',
         ]);
 
+        register_setting('inat_obs_settings_group', 'inat_obs_api_token', [
+            'type' => 'string',
+            'sanitize_callback' => 'sanitize_text_field',
+            'default' => '',
+        ]);
+
         add_settings_section(
             'inat_obs_config_section',
             'Configuration',
@@ -98,6 +104,14 @@
             'inat_obs_display_page_size',
             'Display Page Size',
             'inat_obs_display_page_size_field_callback',
+            'inat-observations',
+            'inat_obs_config_section'
+        );
+
+        add_settings_field(
+            'inat_obs_api_token',
+            'iNaturalist API Token',
+            'inat_obs_api_token_field_callback',
             'inat-observations',
             'inat_obs_config_section'
         );
@@ -173,6 +187,22 @@
         }
         echo '</select>';
         echo '<p class="description">Default number of observations to show per page in shortcode view. Default: 50. Can be overridden by shortcode attribute.</p>';
+    }
+
+    function inat_obs_api_token_field_callback() {
+        $value = get_option('inat_obs_api_token', '');
+        echo '<input type="text" id="inat_obs_api_token" name="inat_obs_api_token" value="' . esc_attr($value) . '" class="regular-text" placeholder="Your JSON Web Token (JWT)">';
+        echo '<p class="description">';
+        echo '<strong>Optional:</strong> Add an API token for authenticated requests. Without a token, you\'re limited to <strong>60 requests/minute</strong> and <strong>10,000 requests/day</strong>. ';
+        echo 'Tokens improve reliability but have the same rate limits. <a href="https://www.inaturalist.org/users/api_token" target="_blank" rel="noopener">Get your API token from iNaturalist →</a>';
+        echo '</p>';
+        echo '<p class="description" style="margin-top: 5px; color: #666; font-size: 0.9em;">';
+        echo '📝 <strong>How to get a token:</strong> ';
+        echo '(1) <a href="https://www.inaturalist.org/login" target="_blank" rel="noopener">Log in to iNaturalist</a>, ';
+        echo '(2) Visit the <a href="https://www.inaturalist.org/users/api_token" target="_blank" rel="noopener">API Token page</a>, ';
+        echo '(3) Copy the JSON Web Token (JWT) shown on that page, ';
+        echo '(4) Paste it here. <em>Note: Tokens expire after 24 hours and need to be refreshed.</em>';
+        echo '</p>';
     }
 
     function inat_obs_status_section_callback() {

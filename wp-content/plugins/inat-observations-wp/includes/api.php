@@ -47,8 +47,9 @@
         $headers = [
             'Accept' => 'application/json',
         ];
-        // Optionally include token for higher rate limits or private data
-        $token = getenv('INAT_API_TOKEN') ?: null;
+        // Optionally include token for authenticated requests
+        // Token from settings takes precedence over environment variable (for backwards compatibility)
+        $token = get_option('inat_obs_api_token', '') ?: getenv('INAT_API_TOKEN') ?: null;
         if ($token) {
             $headers['Authorization'] = 'Bearer ' . $token;
         }

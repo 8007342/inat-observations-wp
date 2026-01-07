@@ -118,6 +118,8 @@
             $page++;
 
             // Rate limiting: sleep 1 second between requests (be polite to iNat API)
+            // iNaturalist rate limits: 100 req/min (recommended: 60 req/min), 10,000 req/day
+            // Our 1-second sleep = 60 req/min, staying at the recommended limit
             if ($results_count === $per_page) {
                 sleep(1);
             }
