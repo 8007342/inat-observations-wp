@@ -165,12 +165,21 @@
                 // SECURITY: Table name uses WordPress-controlled prefix (safe)
                 $fields_table = $wpdb->prefix . 'inat_observation_fields';
 
+                // DEBUG: Log DNA filter configuration (TODO-003)
+                error_log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                error_log('🧬 DNA FILTER ACTIVE');
+                error_log("  Field Property: $field_property");
+                error_log("  Match Pattern: $match_pattern");
+                error_log("  Fields Table: $fields_table");
+
                 // Debug: Check if table exists and has data
                 // SECURITY: $fields_table is safe (WordPress prefix + hardcoded table name)
                 $table_exists = $wpdb->get_var($wpdb->prepare(
                     "SHOW TABLES LIKE %s",
                     $fields_table
                 )) === $fields_table;
+
+                error_log("  Table Exists: " . ($table_exists ? 'YES' : 'NO'));
 
                 if ($table_exists) {
                     // SECURITY: $fields_table is safe, $field_property is whitelisted above
@@ -179,9 +188,20 @@
                         "SELECT COUNT(DISTINCT observation_id) FROM {$fields_table} WHERE {$field_property} LIKE %s",
                         $match_pattern
                     )));
-                    error_log("iNat DNA Filter Debug: fields_table has $field_count rows, $dna_count observations match pattern '$match_pattern'");
+                    error_log("  Total Fields: $field_count");
+                    error_log("  DNA Observations: $dna_count");
+
+                    // Show sample DNA fields (TODO-003)
+                    $sample_fields = $wpdb->get_results($wpdb->prepare(
+                        "SELECT observation_id, name, value FROM {$fields_table} WHERE {$field_property} LIKE %s LIMIT 5",
+                        $match_pattern
+                    ), ARRAY_A);
+                    error_log("  Sample DNA Fields:");
+                    foreach ($sample_fields as $field) {
+                        error_log("    - Obs #{$field['observation_id']}: {$field['name']} = {$field['value']}");
+                    }
                 } else {
-                    error_log("iNat DNA Filter Error: observation_fields table does not exist!");
+                    error_log("  ❌ ERROR: observation_fields table does not exist!");
                 }
 
                 // Subquery: Get observation IDs that have matching observation fields
@@ -195,6 +215,7 @@
 
                 // Add pattern to prepare args (case-insensitive LIKE)
                 $prepare_args[] = $match_pattern;
+                error_log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
             }
 
             // SECURITY: $where_sql built from whitelisted conditions + parameterized values
@@ -211,18 +232,37 @@
             $table = $wpdb->prefix . 'inat_observations';
             $sql = "SELECT * FROM {$table} {$where_sql} ORDER BY {$sort_column} {$sort_order} LIMIT %d OFFSET %d";
 
+            // DEBUG: Log final query (TODO-003)
+            error_log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            error_log('📊 EXECUTING QUERY');
+            error_log("  Table: {$table}");
+            error_log("  Filter conditions: " . ($where_sql ?: '(none - all observations)'));
+            error_log("  ORDER BY: {$sort_column} {$sort_order}");
+            error_log("  LIMIT: {$per_page} OFFSET: {$offset}");
+            error_log("  Prepare args: " . print_r($prepare_args, true));
+
             if (!empty($prepare_args)) {
                 $prepared_sql = $wpdb->prepare($sql, $prepare_args);
-                error_log('iNat Query: ' . $prepared_sql);
+                error_log("  Final SQL: $prepared_sql");
                 $results = $wpdb->get_results($prepared_sql, ARRAY_A);
-                error_log('iNat Query returned ' . count($results) . ' results');
-                if ($wpdb->last_error) {
-                    error_log('iNat Query ERROR: ' . $wpdb->last_error);
-                }
             } else {
                 // SECURITY: $table, $sort_column, $sort_order are all validated above
-                $results = $wpdb->get_results($wpdb->prepare("SELECT * FROM {$table} ORDER BY {$sort_column} {$sort_order} LIMIT %d OFFSET %d", $per_page, $offset), ARRAY_A);
+                $prepared_sql = $wpdb->prepare("SELECT * FROM {$table} ORDER BY {$sort_column} {$sort_order} LIMIT %d OFFSET %d", $per_page, $offset);
+                error_log("  Final SQL: $prepared_sql");
+                $results = $wpdb->get_results($prepared_sql, ARRAY_A);
             }
+
+            // DEBUG: Log results (TODO-003)
+            error_log("  Results returned: " . count($results));
+            if ($wpdb->last_error) {
+                error_log("  ❌ SQL ERROR: " . $wpdb->last_error);
+            }
+
+            // Show first result for verification
+            if (!empty($results)) {
+                error_log("  First result: Obs #{$results[0]['id']} - {$results[0]['species_guess']}");
+            }
+            error_log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
             // Decode JSON metadata for each result
             foreach ($results as &$result) {
@@ -251,6 +291,10 @@
             // SECURITY: $table is safe (WordPress prefix + hardcoded), $where_sql contains whitelisted columns
             $count_sql = "SELECT COUNT(*) FROM {$table} {$where_sql}";
 
+            // DEBUG: Log count query (TODO-003)
+            error_log('📈 COUNT QUERY');
+            error_log("  SQL: $count_sql");
+
             if (!empty($where_clauses)) {
                 // Remove LIMIT/OFFSET args for count query
                 $count_args = array_slice($prepare_args, 0, -2);
@@ -258,6 +302,8 @@
             } else {
                 $total_count = intval($wpdb->get_var($count_sql));
             }
+
+            error_log("  Total Count: $total_count");
 
             // Cache count with same TTL as query
             wp_cache_set($count_cache_key, $total_count, 'inat_observations', $cache_ttl);
