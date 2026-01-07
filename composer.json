@@ -17,13 +17,21 @@
         "yoast/phpunit-polyfills": "^1.0",
         "wp-phpunit/wp-phpunit": "^6.1",
         "squizlabs/php_codesniffer": "^3.7",
-        "wp-coding-standards/wpcs": "^3.0"
+        "wp-coding-standards/wpcs": "^3.0",
+        "brain/monkey": "^2.6",
+        "mockery/mockery": "^1.5"
     },
     "scripts": {
         "test": "phpunit",
-        "test:coverage": "phpunit --coverage-html coverage",
+        "test:coverage": "phpunit --coverage-html dashboard/coverage --coverage-clover dashboard/coverage/clover.xml",
         "lint": "phpcs --standard=WordPress wp-content/plugins/inat-observations-wp/",
-        "lint:fix": "phpcbf --standard=WordPress wp-content/plugins/inat-observations-wp/"
+        "lint:fix": "phpcbf --standard=WordPress wp-content/plugins/inat-observations-wp/",
+        "metrics:generate": "php bin/generate-metrics.php",
+        "dashboard:build": [
+            "@test:coverage",
+            "@metrics:generate"
+        ],
+        "install-hooks": "php bin/install-hooks.php"
     },
     "config": {
         "allow-plugins": {

@@ -1,17 +1,30 @@
 # Local env / secrets
 .env
 
-# Temporary working files
+# Docker volumes (local development data)
+/docker-volumes/
+
+# Legacy temporary files (replaced by docker-volumes/)
 /tmp/db
 /tmp/html
+
+# Toolbox environment marker
+.toolboxenv
 
 # Composer dependencies
 /vendor/
 composer.lock
 
 # PHPUnit and test coverage
-/coverage/
 /.phpunit.result.cache
+
+# Dashboard artifacts (static build outputs)
+/dashboard/coverage/
+/dashboard/metrics.json
+/dashboard/metrics.md
+/dashboard/history/
+# Keep README.md in git
+!/dashboard/README.md
 
 # WordPress test library
 /tmp/wordpress-tests-lib/

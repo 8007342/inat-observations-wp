@@ -1,0 +1,74 @@
+{
+  "total_results": 3,
+  "page": 1,
+  "per_page": 3,
+  "results": [
+    {
+      "id": 123456,
+      "uuid": "abc-123-def-456",
+      "observed_on": "2024-01-15",
+      "species_guess": "Quercus rubra",
+      "place_guess": "Central Park, New York, NY, US",
+      "location": "40.7829,-73.9654",
+      "observation_field_values": [
+        {
+          "observation_field": {
+            "id": 1,
+            "name": "Height"
+          },
+          "value": "10m"
+        },
+        {
+          "observation_field": {
+            "id": 2,
+            "name": "DBH"
+          },
+          "value": "30cm"
+        }
+      ],
+      "photos": [
+        {
+          "id": 789,
+          "url": "https://inaturalist-open-data.s3.amazonaws.com/photos/789/medium.jpg"
+        }
+      ]
+    },
+    {
+      "id": 123457,
+      "uuid": "ghi-789-jkl-012",
+      "observed_on": "2024-01-16",
+      "species_guess": "Acer saccharum",
+      "place_guess": "Prospect Park, Brooklyn, NY, US",
+      "location": "40.6602,-73.9690",
+      "observation_field_values": [],
+      "photos": []
+    },
+    {
+      "id": 123458,
+      "uuid": "mno-345-pqr-678",
+      "observed_on": "2024-01-17",
+      "species_guess": "Pinus strobus",
+      "place_guess": "Adirondack Park, NY, US",
+      "location": "43.9867,-74.3118",
+      "observation_field_values": [
+        {
+          "observation_field": {
+            "id": 3,
+            "name": "Cone Count"
+          },
+          "value": "12"
+        }
+      ],
+      "photos": [
+        {
+          "id": 790,
+          "url": "https://inaturalist-open-data.s3.amazonaws.com/photos/790/medium.jpg"
+        },
+        {
+          "id": 791,
+          "url": "https://inaturalist-open-data.s3.amazonaws.com/photos/791/medium.jpg"
+        }
+      ]
+    }
+  ]
+}
