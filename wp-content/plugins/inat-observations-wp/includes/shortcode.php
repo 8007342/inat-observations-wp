@@ -126,13 +126,15 @@
             $prepare_args[] = $offset;
 
             // Query database (fast!)
+            // SECURITY: $table uses WordPress prefix (safe), $sort_column and $sort_order are whitelisted above
             $table = $wpdb->prefix . 'inat_observations';
-            $sql = "SELECT * FROM $table $where_sql ORDER BY $sort_column $sort_order LIMIT %d OFFSET %d";
+            $sql = "SELECT * FROM {$table} {$where_sql} ORDER BY {$sort_column} {$sort_order} LIMIT %d OFFSET %d";
 
             if (!empty($prepare_args)) {
                 $results = $wpdb->get_results($wpdb->prepare($sql, $prepare_args), ARRAY_A);
             } else {
-                $results = $wpdb->get_results($wpdb->prepare("SELECT * FROM $table ORDER BY $sort_column $sort_order LIMIT %d OFFSET %d", $per_page, $offset), ARRAY_A);
+                // SECURITY: $table, $sort_column, $sort_order are all validated above
+                $results = $wpdb->get_results($wpdb->prepare("SELECT * FROM {$table} ORDER BY {$sort_column} {$sort_order} LIMIT %d OFFSET %d", $per_page, $offset), ARRAY_A);
             }
 
             // Decode JSON metadata for each result

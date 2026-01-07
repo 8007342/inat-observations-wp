@@ -143,17 +143,30 @@
             // DNA filter (THE STAR! 🧬)
             // Query normalized observation_fields table with configurable pattern
             if ($has_dna) {
-                $field_property = get_option('inat_obs_dna_field_property', 'name');
+                // SECURITY: Whitelist validation for field_property (SQL injection prevention)
+                $allowed_field_properties = ['name', 'value', 'datatype'];
+                $field_property_option = get_option('inat_obs_dna_field_property', 'name');
+                $field_property = in_array($field_property_option, $allowed_field_properties, true)
+                    ? $field_property_option
+                    : 'name';
+
                 $match_pattern = get_option('inat_obs_dna_match_pattern', 'DNA%');
 
+                // SECURITY: Table name uses WordPress-controlled prefix (safe)
                 $fields_table = $wpdb->prefix . 'inat_observation_fields';
 
                 // Debug: Check if table exists and has data
-                $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$fields_table'") === $fields_table;
+                // SECURITY: $fields_table is safe (WordPress prefix + hardcoded table name)
+                $table_exists = $wpdb->get_var($wpdb->prepare(
+                    "SHOW TABLES LIKE %s",
+                    $fields_table
+                )) === $fields_table;
+
                 if ($table_exists) {
-                    $field_count = intval($wpdb->get_var("SELECT COUNT(*) FROM $fields_table"));
+                    // SECURITY: $fields_table is safe, $field_property is whitelisted above
+                    $field_count = intval($wpdb->get_var("SELECT COUNT(*) FROM {$fields_table}"));
                     $dna_count = intval($wpdb->get_var($wpdb->prepare(
-                        "SELECT COUNT(DISTINCT observation_id) FROM $fields_table WHERE $field_property LIKE %s",
+                        "SELECT COUNT(DISTINCT observation_id) FROM {$fields_table} WHERE {$field_property} LIKE %s",
                         $match_pattern
                     )));
                     error_log("iNat DNA Filter Debug: fields_table has $field_count rows, $dna_count observations match pattern '$match_pattern'");
@@ -163,10 +176,11 @@
 
                 // Subquery: Get observation IDs that have matching observation fields
                 // Uses prefix index for FAST queries: LIKE 'DNA%' (not LIKE '%DNA%')
+                // SECURITY: $fields_table is safe, $field_property is whitelisted above
                 $where_clauses[] = "id IN (
                     SELECT DISTINCT observation_id
-                    FROM $fields_table
-                    WHERE $field_property LIKE %s
+                    FROM {$fields_table}
+                    WHERE {$field_property} LIKE %s
                 )";
 
                 // Add pattern to prepare args (case-insensitive LIKE)
@@ -180,8 +194,9 @@
             $prepare_args[] = $offset;
 
             // Query database (fast!)
+            // SECURITY: $table uses WordPress prefix (safe), $sort_column and $sort_order are whitelisted above
             $table = $wpdb->prefix . 'inat_observations';
-            $sql = "SELECT * FROM $table $where_sql ORDER BY $sort_column $sort_order LIMIT %d OFFSET %d";
+            $sql = "SELECT * FROM {$table} {$where_sql} ORDER BY {$sort_column} {$sort_order} LIMIT %d OFFSET %d";
 
             if (!empty($prepare_args)) {
                 $prepared_sql = $wpdb->prepare($sql, $prepare_args);
@@ -192,7 +207,8 @@
                     error_log('iNat Query ERROR: ' . $wpdb->last_error);
                 }
             } else {
-                $results = $wpdb->get_results($wpdb->prepare("SELECT * FROM $table ORDER BY $sort_column $sort_order LIMIT %d OFFSET %d", $per_page, $offset), ARRAY_A);
+                // SECURITY: $table, $sort_column, $sort_order are all validated above
+                $results = $wpdb->get_results($wpdb->prepare("SELECT * FROM {$table} ORDER BY {$sort_column} {$sort_order} LIMIT %d OFFSET %d", $per_page, $offset), ARRAY_A);
             }
 
             // Decode JSON metadata for each result
@@ -219,7 +235,8 @@
 
         if (false === $total_count) {
             // Count query (same WHERE clause, no LIMIT/OFFSET)
-            $count_sql = "SELECT COUNT(*) FROM $table $where_sql";
+            // SECURITY: $table is safe (WordPress prefix + hardcoded), $where_sql contains whitelisted columns
+            $count_sql = "SELECT COUNT(*) FROM {$table} {$where_sql}";
 
             if (!empty($where_clauses)) {
                 // Remove LIMIT/OFFSET args for count query

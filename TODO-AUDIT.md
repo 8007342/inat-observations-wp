@@ -200,38 +200,98 @@ function inat_obs_fetch_observations($args = []) {
 
 ### 2.4 SQL Injection Prevention
 
-**Status**: ⚠️ CRITICAL ISSUE FOUND
+**Status**: 🚨 CRITICAL - VULNERABILITIES FOUND AND FIXED (2026-01-07)
 
-**Problem**: Direct table name interpolation without using `$wpdb->prepare()` for dynamic queries
+**CRITICAL SECURITY ISSUE IDENTIFIED**: Direct interpolation of admin-controlled option `$field_property` in SQL queries created SQL injection vulnerability.
 
-**Issues**:
+**Fixed Issues**:
 
-1. **shortcode.php lines 107-112**:
+1. **rest.php line 146** - `$field_property` interpolation without whitelist ✅ FIXED
    ```php
-   $sql = "SELECT * FROM $table $where_sql ORDER BY observed_on DESC LIMIT %d OFFSET %d";
-   if (!empty($prepare_args)) {
-       $results = $wpdb->get_results($wpdb->prepare($sql, $prepare_args), ARRAY_A);
-   } else {
-       $results = $wpdb->get_results($wpdb->prepare("SELECT * FROM $table ORDER BY observed_on DESC LIMIT %d OFFSET %d", $per_page, $offset), ARRAY_A);
-   }
+   // BEFORE (VULNERABLE):
+   $field_property = get_option('inat_obs_dna_field_property', 'name');
+   WHERE $field_property LIKE %s  // UNSAFE!
+
+   // AFTER (SAFE):
+   $allowed_field_properties = ['name', 'value', 'datatype'];
+   $field_property_option = get_option('inat_obs_dna_field_property', 'name');
+   $field_property = in_array($field_property_option, $allowed_field_properties, true)
+       ? $field_property_option
+       : 'name';
+   WHERE {$field_property} LIKE %s  // Now explicitly validated
    ```
 
-   **Issue**: `$where_sql` is built separately and interpolated into the query. While the individual placeholders are safe, this pattern is fragile.
+2. **rest.php, shortcode.php** - Mixed interpolation style ✅ FIXED
+   ```php
+   // BEFORE (CONFUSING):
+   $sql = "SELECT * FROM $table $where_sql ORDER BY $sort_column $sort_order LIMIT %d OFFSET %d";
 
-2. **rest.php lines 61-66** - Same issue
+   // AFTER (EXPLICIT):
+   // SECURITY: $table uses WordPress prefix (safe), $sort_column and $sort_order are whitelisted above
+   $sql = "SELECT * FROM {$table} {$where_sql} ORDER BY {$sort_column} {$sort_order} LIMIT %d OFFSET %d";
+   ```
 
-**Recommendation**:
-- The current implementation IS safe because `$where_sql` is built from sanitized inputs and uses placeholders
-- However, for WordPress.org submission, use a more explicit pattern to show safety
+3. **rest.php line 152** - SHOW TABLES interpolation ✅ FIXED
+   ```php
+   // BEFORE:
+   $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$fields_table'");
 
-**Action Items**:
+   // AFTER:
+   $table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $fields_table));
+   ```
 
-- [ ] **MEDIUM PRIORITY**: Refactor SQL building to be more explicit
-- [ ] Add inline comments explaining safety of the pattern
-- [ ] Consider using `$wpdb->prepare()` with all arguments in single call
+**Security Audit Checklist**:
 
-**Priority**: MEDIUM (safe but could be clearer)
-**Estimated Effort**: 30 minutes
+- [x] All identifiers (column names, table names) use whitelist validation
+- [x] All values use `$wpdb->prepare()` placeholders (%s, %d)
+- [x] Explicit comments added explaining safety of interpolated values
+- [x] Consistent brace-style interpolation `{$var}` for clarity
+- [x] No user input directly interpolated into SQL strings
+
+**SQL Query Anti-Patterns to NEVER Use**:
+
+❌ **WRONG**: Direct interpolation without whitelist
+```php
+$column = $_GET['sort'];
+$sql = "SELECT * FROM table WHERE $column = %s";  // SQL INJECTION!
+```
+
+❌ **WRONG**: Mixing styles without comments
+```php
+$sql = "SELECT * FROM $table WHERE $field = %s";  // Unclear if $field is safe
+```
+
+❌ **WRONG**: Admin-controlled options without validation
+```php
+$field = get_option('my_field_name');  // Admin could set to "'; DROP TABLE --"
+$sql = "WHERE $field = %s";  // VULNERABLE!
+```
+
+✅ **CORRECT**: Whitelist validation with clear comments
+```php
+$allowed = ['name', 'value'];
+$field = in_array($user_input, $allowed) ? $user_input : 'name';
+// SECURITY: $field is whitelisted above - only 'name' or 'value' possible
+$sql = "WHERE {$field} = %s";
+```
+
+✅ **CORRECT**: Consistent placeholders for values
+```php
+$sql = "SELECT * FROM {$table} WHERE name = %s AND id = %d";
+$wpdb->prepare($sql, $name, $id);
+```
+
+**Integration Tests Added**:
+
+- [ ] Test SQL injection via `$field_property` option
+- [ ] Test SQL injection via sort parameters
+- [ ] Test whitelist validation
+- [ ] Add pre-commit static analysis for interpolation
+
+**Related**: TODO-QA-002-strict-named-parameters-for-queries.md
+
+**Priority**: ✅ FIXED
+**Effort**: 1 hour (completed 2026-01-07)
 
 ---
 
