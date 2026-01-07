@@ -192,9 +192,9 @@ class RestTest extends PHPUnit\Framework\TestCase {
 
         inat_obs_rest_get_observations($request);
 
-        // Verify WHERE clause - Updated for new API using UPPER() = instead of LIKE
+        // Verify WHERE clause uses IN clause (TODO-BUG-004)
         $this->assertStringContainsString('WHERE', $captured_sql);
-        $this->assertStringContainsString('UPPER(species_guess) = %s', $captured_sql);
+        $this->assertStringContainsString('UPPER(species_guess) IN', $captured_sql);
     }
 
     /**
@@ -230,8 +230,8 @@ class RestTest extends PHPUnit\Framework\TestCase {
 
         inat_obs_rest_get_observations($request);
 
-        // Verify WHERE clause - Updated for new API using UPPER() = instead of LIKE
-        $this->assertStringContainsString('UPPER(place_guess) = %s', $captured_sql);
+        // Verify WHERE clause uses IN clause (TODO-BUG-004)
+        $this->assertStringContainsString('UPPER(place_guess) IN', $captured_sql);
     }
 
     /**
@@ -268,10 +268,10 @@ class RestTest extends PHPUnit\Framework\TestCase {
 
         inat_obs_rest_get_observations($request);
 
-        // Verify both filters in WHERE clause - Updated for new API using UPPER() = instead of LIKE
-        $this->assertStringContainsString('UPPER(species_guess) = %s', $captured_sql);
+        // Verify both filters in WHERE clause with IN clauses (TODO-BUG-004)
+        $this->assertStringContainsString('UPPER(species_guess) IN', $captured_sql);
         $this->assertStringContainsString('AND', $captured_sql);
-        $this->assertStringContainsString('UPPER(place_guess) = %s', $captured_sql);
+        $this->assertStringContainsString('UPPER(place_guess) IN', $captured_sql);
     }
 
     /**

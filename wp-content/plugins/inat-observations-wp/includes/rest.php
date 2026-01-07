@@ -107,8 +107,9 @@
 
             if (!empty($species_filter)) {
                 // Multi-select species filter with normalized matching
-                // TODO-BUG-002: Use unified normalization for consistency
-                $species_conditions = [];
+                // TODO-BUG-004: Use IN clause for array filters
+                $normalized_species = [];
+                $has_unknown = false;
 
                 foreach ($species_filter as $species) {
                     // Normalize filter value (UPPERCASE + no accents + trimmed)
@@ -116,14 +117,26 @@
 
                     // Special case: "Unknown Species" matches empty species_guess
                     if ($normalized === 'UNKNOWN SPECIES') {
-                        $species_conditions[] = "(species_guess = '' OR species_guess IS NULL)";
+                        $has_unknown = true;
                     } else {
-                        // Case-insensitive exact match using UPPER()
-                        // Note: DB values may have accents, normalized value has them removed
-                        // This works because: UPPER("Montréal") will still match UPPER(remove_accents("Montréal"))
-                        $species_conditions[] = 'UPPER(species_guess) = %s';
-                        $prepare_args[] = $normalized;
+                        $normalized_species[] = $normalized;
                     }
+                }
+
+                $species_conditions = [];
+
+                // Add IN clause for known species
+                if (!empty($normalized_species)) {
+                    $placeholders = implode(', ', array_fill(0, count($normalized_species), '%s'));
+                    $species_conditions[] = "UPPER(species_guess) IN ($placeholders)";
+                    foreach ($normalized_species as $species) {
+                        $prepare_args[] = $species;
+                    }
+                }
+
+                // Add NULL check for "Unknown Species"
+                if ($has_unknown) {
+                    $species_conditions[] = "(species_guess = '' OR species_guess IS NULL)";
                 }
 
                 if (!empty($species_conditions)) {
@@ -133,20 +146,22 @@
 
             if (!empty($place_filter)) {
                 // Multi-select location filter with normalized matching
-                // TODO-BUG-002: Use unified normalization for consistency
-                $place_conditions = [];
+                // TODO-BUG-004: Use IN clause for array filters
+                $normalized_locations = [];
 
                 foreach ($place_filter as $place) {
                     // Normalize filter value (UPPERCASE + no accents + trimmed)
                     $normalized = inat_obs_normalize_filter_value($place);
-
-                    // Case-insensitive exact match using UPPER()
-                    $place_conditions[] = 'UPPER(place_guess) = %s';
-                    $prepare_args[] = $normalized;
+                    $normalized_locations[] = $normalized;
                 }
 
-                if (!empty($place_conditions)) {
-                    $where_clauses[] = '(' . implode(' OR ', $place_conditions) . ')';
+                if (!empty($normalized_locations)) {
+                    $placeholders = implode(', ', array_fill(0, count($normalized_locations), '%s'));
+                    $where_clauses[] = "UPPER(place_guess) IN ($placeholders)";
+
+                    foreach ($normalized_locations as $location) {
+                        $prepare_args[] = $location;
+                    }
                 }
             }
 

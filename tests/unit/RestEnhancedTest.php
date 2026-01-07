@@ -78,9 +78,9 @@ class RestEnhancedTest extends PHPUnit\Framework\TestCase {
 
         inat_obs_rest_get_observations($request);
 
-        // Verify WHERE clause has multiple species conditions with OR
-        $this->assertStringContainsString('UPPER(species_guess) = %s', $captured_sql);
-        $this->assertStringContainsString('OR', $captured_sql);
+        // Verify WHERE clause uses IN clause for multiple species (TODO-BUG-004)
+        $this->assertStringContainsString('UPPER(species_guess) IN', $captured_sql);
+        $this->assertStringContainsString('%s, %s, %s', $captured_sql);
 
         // Verify uppercase values are passed (check accumulated args from all prepare() calls)
         $this->assertContains('ROBIN', $all_captured_args);
@@ -127,9 +127,9 @@ class RestEnhancedTest extends PHPUnit\Framework\TestCase {
 
         inat_obs_rest_get_observations($request);
 
-        // Verify WHERE clause has multiple location conditions with OR
-        $this->assertStringContainsString('UPPER(place_guess) = %s', $captured_sql);
-        $this->assertStringContainsString('OR', $captured_sql);
+        // Verify WHERE clause uses IN clause for multiple locations (TODO-BUG-004)
+        $this->assertStringContainsString('UPPER(place_guess) IN', $captured_sql);
+        $this->assertStringContainsString('%s, %s, %s', $captured_sql);
 
         // Verify uppercase values are passed (check accumulated args from all prepare() calls)
         $this->assertContains('CALIFORNIA', $all_captured_args);

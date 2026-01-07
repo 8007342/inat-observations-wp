@@ -240,25 +240,45 @@ foreach ($results as $value) {
 
 **Phase 1: Integration Tests** ✅ COMPLETE
 - Created `tests/integration/test-filter-combinations.php`
-- 13 comprehensive test cases
+- 15 comprehensive test cases
 - Covers all filter combinations and edge cases
 
 **Phase 2: Remove Dropdown** ✅ COMPLETE
 - Removed broken dropdown code
-- Committed and pushed
+- Committed and pushed (08ba99c)
 
-**Phase 3: Unified Cleanup** ⏳ IN PROGRESS
-- Creating helper function
-- Updating all integration points
+**Phase 3: Unified Cleanup** ✅ COMPLETE
+- Created `includes/helpers.php` with `inat_obs_normalize_filter_value()`
+- Updated `rest.php` to use normalization
+- Updated `autocomplete.php` cache v3 (species) and v2 (locations)
+- All 60 unit tests passing
+- Committed and pushed (c4eade8)
 
-**Phase 4: Rewire Dropdown** ⏸ PENDING
-- Blocked by Phase 3 completion
+**Phase 4: Rewire Dropdown** ✅ COMPLETE
+- Added `normalizeFilterValue()` JavaScript function
+- Rebuilt `attachCombinedAutocomplete()` from scratch
+- Dropdown uses normalized values in data attributes
+- Scope issue fixed (moved inline to access currentFilters)
+- Overflow CSS issue fixed (dropdown displays correctly)
+- Committed and pushed (f735052, 9cd8094)
 
-**Phase 5: Backend Consistency** ⏸ PENDING
-- Blocked by Phase 3 completion
+**Phase 5: Backend Consistency** ✅ COMPLETE
+- All queries use `inat_obs_normalize_filter_value()`
+- Species/location filters normalized consistently
+- Completed in Phase 3
 
-**Phase 6: Autocomplete Cache** ⏸ PENDING
-- Blocked by Phase 3 completion
+**Phase 6: Autocomplete Cache** ✅ COMPLETE
+- Cache includes `normalized_value` field
+- Species cache v3, Locations cache v2
+- Cache invalidation updated
+- Completed in Phase 3
+
+**Phase 7: UI Layout Unification** ✅ COMPLETE (PR #2)
+- Moved DNA checkbox + search to controls bar (same level as pagination)
+- Added First/Prev/Next/Last pagination buttons
+- Moved filter chips below controls
+- Cleaner visual hierarchy
+- Branch: `fix/unified-controls-layout`
 
 ---
 
