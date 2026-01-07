@@ -40,8 +40,11 @@ function inat_obs_get_species_autocomplete() {
 
     $query_time = microtime(true) - $start_time;
 
-    // Cache for 1 hour
-    set_transient($cache_key, $results, HOUR_IN_SECONDS);
+    // Cache autocomplete results
+    // Development mode: use shorter cache TTL if configured (for manual testing)
+    // Set via: define('INAT_OBS_DEV_CACHE_TTL', 30); in wp-config.php
+    $cache_ttl = defined('INAT_OBS_DEV_CACHE_TTL') ? absint(INAT_OBS_DEV_CACHE_TTL) : HOUR_IN_SECONDS;
+    set_transient($cache_key, $results, $cache_ttl);
 
     error_log(sprintf(
         'iNat Autocomplete: Generated species list (%d items, %.2fms) - cached for 1 hour',
@@ -82,7 +85,9 @@ function inat_obs_get_location_autocomplete() {
 
     $query_time = microtime(true) - $start_time;
 
-    set_transient($cache_key, $results, HOUR_IN_SECONDS);
+    // Cache autocomplete results (same TTL config as species)
+    $cache_ttl = defined('INAT_OBS_DEV_CACHE_TTL') ? absint(INAT_OBS_DEV_CACHE_TTL) : HOUR_IN_SECONDS;
+    set_transient($cache_key, $results, $cache_ttl);
 
     error_log(sprintf(
         'iNat Autocomplete: Generated location list (%d items, %.2fms) - cached for 1 hour',

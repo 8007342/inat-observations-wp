@@ -94,35 +94,27 @@
           totalPages = data.total_pages || 1;
           console.log('[iNat] Got', results.length, 'results,', totalResults, 'total across', totalPages, 'pages');
 
+          // Variable to store no results message (shown instead of grid/list)
+          let noResultsMessage = null;
+
           // Check if empty
           if (results.length === 0) {
             // Determine if this is due to filters or empty database
             const hasFilters = currentFilters.species.length > 0 || currentFilters.location.length > 0 || currentFilters.hasDNA;
 
             if (hasFilters) {
-              // Filtered query with no results - show graceful recovery
-              listContainer.innerHTML = filterHtml +
-                '<div style="padding: 40px 20px; text-align: center; background: #f9f9f9; border: 1px dashed #ddd; border-radius: 4px;">' +
+              // Filtered query with no results - show graceful recovery WITH filter bar
+              // Users can modify filters directly or click reset
+              noResultsMessage = '<div style="padding: 40px 20px; text-align: center; background: #f9f9f9; border: 1px dashed #ddd; border-radius: 4px; margin-top: 20px;">' +
                 '<h3 style="margin: 0 0 10px 0; color: #666;">No observations match your filters</h3>' +
                 '<p style="margin: 0 0 20px 0; color: #888;">Try different search terms or remove some filters.</p>' +
                 '<button id="inat-reset-filters" style="padding: 10px 20px; background: #2271b1; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 600;">Reset All Filters</button>' +
                 '</div>';
 
-              // Attach reset button handler
-              setTimeout(() => {
-                const resetBtn = document.getElementById('inat-reset-filters');
-                if (resetBtn) {
-                  resetBtn.addEventListener('click', function() {
-                    // Reset all filters and reload
-                    currentFilters.species = [];
-                    currentFilters.location = [];
-                    currentFilters.hasDNA = false;
-                    currentPage = 1;
-                    fetchObservations();
-                  });
-                }
-              }, 0);
-              return;
+              // Continue rendering to show filter bar (don't return early)
+              totalResults = 0;
+              totalPages = 0;
+              // Will render filter bar below, then show no results message
             } else {
               // Empty database - show setup instructions
               listContainer.innerHTML = '<div style="padding: 20px; background: #f0f0f1; border-left: 4px solid #2271b1;">' +
@@ -149,11 +141,11 @@
             textFiltersVisible = true;
           }
 
-          // Filter bar - Unified search with DNA checkbox (no border, mobile-optimized)
-          let filterHtml = '<div id="inat-filter-bar" style="margin-bottom: 15px;">';
+          // Filter bar - Unified search with DNA checkbox (invisible frame for positioning, mobile-optimized)
+          let filterHtml = '<div id="inat-filter-bar" style="margin-bottom: 15px; padding: 12px; border: 1px solid transparent; border-radius: 4px; background: transparent; max-width: 100%; overflow-x: auto; overflow-y: visible; position: relative; z-index: 100000; box-sizing: border-box;">';
 
           // Main filter row: DNA checkbox + unified search input
-          filterHtml += '<div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">';
+          filterHtml += '<div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: 100%; position: relative;">';
 
           // DNA checkbox (compact - just emoji, no text for mobile)
           filterHtml += '<label style="display: flex; align-items: center; gap: 6px; font-size: 20px; cursor: pointer; padding: 6px 10px; background: white; border: 2px solid ' + (currentFilters.hasDNA ? '#2271b1' : '#ddd') + '; border-radius: 4px; transition: all 0.2s;">';
@@ -162,8 +154,8 @@
           filterHtml += '</label>';
 
           // Unified search input (for both species and locations)
-          filterHtml += '<div style="position: relative; flex: 1; min-width: 250px;">';
-          filterHtml += '<input type="text" id="inat-unified-search" placeholder="Search species or location..." style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">';
+          filterHtml += '<div style="position: relative; flex: 1; min-width: 200px; max-width: 100%; overflow: visible; z-index: 100001;">';
+          filterHtml += '<input type="text" id="inat-unified-search" placeholder="Search species or location..." style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box;">';
           filterHtml += '</div>';
 
           filterHtml += '</div>';
@@ -183,7 +175,7 @@
 
             // Location chips (green with location emoji)
             currentFilters.location.forEach(name => {
-              filterHtml += '<span class="inat-chip" data-field="location" data-value="' + escapeHtml(name) + '" style="display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; background: #46b450; color: white; border-radius: 16px; font-size: 13px; cursor: default;">';
+              filterHtml += '<span class="inat-chip" data-field="location" data-value="' + escapeHtml(name) + '" style="display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; background: #2d7f3a; color: white; border-radius: 16px; font-size: 13px; cursor: default;">';
               filterHtml += '📍 ' + escapeHtml(name);
               filterHtml += '<button class="inat-chip-remove" style="background: none; border: none; color: white; cursor: pointer; padding: 0; width: 18px; height: 18px; line-height: 1; font-size: 18px; margin-left: 2px;">×</button>';
               filterHtml += '</span>';
@@ -194,7 +186,7 @@
 
           filterHtml += '</div>';
 
-          let controlsHtml = '<div id="inat-controls" style="margin-bottom: 20px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">';
+          let controlsHtml = '<div id="inat-controls" style="margin-bottom: 20px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; max-width: 100%; overflow-x: auto; position: relative; z-index: 1;">';
 
           // View toggle
           controlsHtml += '<div style="display: flex; gap: 5px; border: 1px solid #ddd; border-radius: 4px; overflow: hidden;">';
@@ -343,7 +335,8 @@
             html += '</div>';
           }
 
-          listContainer.innerHTML = filterHtml + controlsHtml + html;
+          // Render: filterHtml + controlsHtml + (noResultsMessage OR html)
+          listContainer.innerHTML = filterHtml + controlsHtml + (noResultsMessage || html);
 
           // Attach event handlers
           const perPageSelect = document.getElementById('inat-per-page');
@@ -414,6 +407,18 @@
             });
           }
 
+          // Reset All Filters button (shown in no results message)
+          const resetFiltersBtn = document.getElementById('inat-reset-filters');
+          if (resetFiltersBtn) {
+            resetFiltersBtn.addEventListener('click', function() {
+              currentFilters.species = [];
+              currentFilters.location = [];
+              currentFilters.hasDNA = false;
+              currentPage = 1;
+              fetchObservations();
+            });
+          }
+
           // Chip remove buttons
           const chipRemoveButtons = document.querySelectorAll('.inat-chip-remove');
           chipRemoveButtons.forEach(btn => {
@@ -441,15 +446,25 @@
           if (unifiedSearch) {
             // Attach combined autocomplete (species + locations with emoji indicators)
             attachCombinedAutocomplete(unifiedSearch, autocompleteCache, function(value, type) {
-              console.log('[iNat] Autocomplete selected:', { value, type });
+              console.log('[iNat] Autocomplete selected:', {
+                value: value,
+                type: type,
+                valueLength: value.length,
+                valueCharCodes: Array.from(value).map(c => c.charCodeAt(0)),
+                trimmedValue: value.trim(),
+                trimmedLength: value.trim().length
+              });
+
+              // Trim whitespace to be safe
+              const cleanValue = value.trim();
 
               // Add to appropriate array based on type
-              if (type === 'species' && !currentFilters.species.includes(value)) {
-                currentFilters.species.push(value);
-                console.log('[iNat] Added species filter:', value, 'All species:', currentFilters.species);
-              } else if (type === 'location' && !currentFilters.location.includes(value)) {
-                currentFilters.location.push(value);
-                console.log('[iNat] Added location filter:', value, 'All locations:', currentFilters.location);
+              if (type === 'species' && !currentFilters.species.includes(cleanValue)) {
+                currentFilters.species.push(cleanValue);
+                console.log('[iNat] Added species filter:', cleanValue, 'All species:', currentFilters.species);
+              } else if (type === 'location' && !currentFilters.location.includes(cleanValue)) {
+                currentFilters.location.push(cleanValue);
+                console.log('[iNat] Added location filter:', cleanValue, 'All locations:', currentFilters.location);
               }
 
               // Clear input and reload
@@ -558,32 +573,53 @@
 
   // Helper: Attach combined autocomplete (species + locations with emoji indicators)
   function attachCombinedAutocomplete(input, cache, onSelectCallback) {
+    console.log('[iNat] Attaching combined autocomplete, cache:', cache);
+
     // Create dropdown container
     const dropdown = document.createElement('div');
     dropdown.className = 'inat-autocomplete-dropdown';
     dropdown.style.cssText = `
       position: absolute;
+      top: 100%;
       background: white;
       border: 1px solid #ddd;
       border-top: none;
+      border-radius: 0 0 4px 4px;
       max-height: 300px;
       overflow-y: auto;
-      z-index: 1000;
+      z-index: 100002;
       display: none;
       box-shadow: 0 4px 6px rgba(0,0,0,0.1);
       left: 0;
       right: 0;
+      width: 100%;
     `;
 
-    // Wrap input in a relative container
+    // Ensure wrapper has position: relative
     const wrapper = input.parentNode;
+    if (!wrapper.style.position || wrapper.style.position === 'static') {
+      wrapper.style.position = 'relative';
+    }
     wrapper.appendChild(dropdown);
 
     // Handle input events
     input.addEventListener('input', function() {
       const query = this.value.toLowerCase().trim();
 
-      if (!query || (!cache.species && !cache.location)) {
+      console.log('[iNat] Autocomplete input:', query, 'Cache state:', {
+        hasSpecies: !!cache.species,
+        speciesCount: cache.species?.length || 0,
+        hasLocation: !!cache.location,
+        locationCount: cache.location?.length || 0
+      });
+
+      if (!query) {
+        dropdown.style.display = 'none';
+        return;
+      }
+
+      if (!cache.species && !cache.location) {
+        console.log('[iNat] No autocomplete data loaded yet');
         dropdown.style.display = 'none';
         return;
       }
@@ -602,7 +638,14 @@
       // Combine and limit total results
       const allMatches = [...speciesMatches, ...locationMatches].slice(0, 15);
 
+      console.log('[iNat] Autocomplete matches:', {
+        species: speciesMatches.length,
+        locations: locationMatches.length,
+        total: allMatches.length
+      });
+
       if (allMatches.length === 0) {
+        console.log('[iNat] No matches found for:', query);
         dropdown.style.display = 'none';
         return;
       }
@@ -627,6 +670,7 @@
         });
         option.addEventListener('click', function() {
           dropdown.style.display = 'none';
+          input.value = '';  // Clear input after selection
           // Trigger callback with value AND type
           if (onSelectCallback && typeof onSelectCallback === 'function') {
             onSelectCallback(match.value, match.type);
@@ -635,9 +679,9 @@
         dropdown.appendChild(option);
       });
 
-      // Position dropdown below input
-      dropdown.style.top = input.offsetHeight + 'px';
+      // Show dropdown (positioned via CSS: top: 100%)
       dropdown.style.display = 'block';
+      console.log('[iNat] Showing autocomplete dropdown with', allMatches.length, 'matches');
     });
 
     // Hide dropdown when clicking outside

@@ -56,7 +56,14 @@
 
         // Determine if this is a filtered query (shorter TTL for filtered queries)
         $is_filtered = !empty($species_filter) || !empty($place_filter) || $has_dna;
-        $cache_ttl = $is_filtered ? 300 : 3600;  // 5 min for filtered, 1 hour for unfiltered
+
+        // Development mode: use shorter cache TTL if configured (for manual testing)
+        // Set via: define('INAT_OBS_DEV_CACHE_TTL', 30); in wp-config.php
+        if (defined('INAT_OBS_DEV_CACHE_TTL')) {
+            $cache_ttl = absint(INAT_OBS_DEV_CACHE_TTL);
+        } else {
+            $cache_ttl = $is_filtered ? 300 : 3600;  // 5 min for filtered, 1 hour for unfiltered
+        }
 
         // Build cache key
         $cache_key = 'inat_obs_query_' . md5(serialize([

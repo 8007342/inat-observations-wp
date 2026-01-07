@@ -30,11 +30,11 @@
 
         // Minimal render. JS will enhance filters.
         ob_start();
-        echo '<div id="' . esc_attr('inat-observations-root') . '">';
+        echo '<div id="' . esc_attr('inat-observations-root') . '" style="max-width: 100%; overflow-x: auto; overflow-y: visible; box-sizing: border-box;">';
         echo '<div class="' . esc_attr('inat-filters') . '">';
         echo '<select id="' . esc_attr('inat-filter-field') . '"><option value="">' . esc_html('Loading filters...') . '</option></select>';
         echo '</div>';
-        echo '<div id="' . esc_attr('inat-list') . '">' . esc_html('Loading observations...') . '</div>';
+        echo '<div id="' . esc_attr('inat-list') . '" style="max-width: 100%; box-sizing: border-box; overflow: visible;">' . esc_html('Loading observations...') . '</div>';
         echo '</div>';
         return ob_get_clean();
     }
@@ -119,8 +119,11 @@
                 }
             }
 
-            // Cache query result for 5 minutes
-            wp_cache_set($cache_key, $results, 'inat_observations', 300);
+            // Cache query result
+            // Development mode: use shorter cache TTL if configured (for manual testing)
+            // Set via: define('INAT_OBS_DEV_CACHE_TTL', 30); in wp-config.php
+            $cache_ttl = defined('INAT_OBS_DEV_CACHE_TTL') ? absint(INAT_OBS_DEV_CACHE_TTL) : 300;  // Default: 5 minutes
+            wp_cache_set($cache_key, $results, 'inat_observations', $cache_ttl);
         }
 
         wp_send_json_success(['results' => $results]);
