@@ -1,270 +1,247 @@
-#!/usr/bin/env bash
+#!/bin/bash
 #
-# inat.sh - iNaturalist Observations WordPress Plugin Development Environment
-#
-# Single point of entry for development. Sets up toolbox, installs dependencies,
-# and launches Docker Compose stack.
+# inat.sh - WordPress development environment for iNat Observations plugin
 #
 # Usage:
-#   ./inat.sh           # Start dev environment
-#   ./inat.sh --stop    # Stop containers
-#   ./inat.sh --clean   # Stop and remove volumes (DESTRUCTIVE)
+#   ./inat.sh                    Start WordPress (or enter if stopped)
+#   ./inat.sh --clean            Stop containers and wipe all data
+#   ./inat.sh --clean-and-install Clean data and auto-install WordPress
+#   ./inat.sh logs               Tail container logs
+#
 
-set -euo pipefail
+set -e
 
-# === Configuration ===
-TOOLBOX_NAME="inat-observations"
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-COMPOSE_FILE="$PROJECT_ROOT/docker-compose.yml"
+TOOLBOX_NAME="inat-observations"
 
-# === Functions ===
+# Detect Fedora Silverblue
+is_silverblue() {
+    if [[ -f /etc/os-release ]]; then
+        grep -q "^VARIANT_ID=silverblue" /etc/os-release 2>/dev/null
+    else
+        return 1
+    fi
+}
 
-# Check if running inside toolbox
+# Check if inside toolbox
 is_inside_toolbox() {
     [[ -f /run/.containerenv ]] || [[ -f /run/.toolboxenv ]]
 }
 
-# Check if toolbox exists
-toolbox_exists() {
-    toolbox list 2>/dev/null | grep -qw "$TOOLBOX_NAME"
-}
-
-# Create toolbox
-create_toolbox() {
-    echo "📦 Creating toolbox '$TOOLBOX_NAME'..."
-    if toolbox create "$TOOLBOX_NAME" 2>&1 | grep -q "already exists"; then
-        echo "ℹ️  Toolbox already exists, using existing one"
-    fi
-}
-
-# Install Docker and dependencies
-install_dependencies() {
-    echo "🔧 Checking dependencies..."
-
-    local needs_install=false
-
-    # Check Docker CLI
-    if ! command -v docker &> /dev/null; then
-        needs_install=true
-        echo "  → Docker CLI not found"
-    fi
-
-    # Check docker-compose
-    if ! command -v docker-compose &> /dev/null; then
-        needs_install=true
-        echo "  → docker-compose not found"
-    fi
-
-    # Check PHP
-    if ! command -v php &> /dev/null; then
-        needs_install=true
-        echo "  → PHP not found"
-    fi
-
-    # Check Composer
-    if ! command -v composer &> /dev/null; then
-        needs_install=true
-        echo "  → Composer not found"
-    fi
-
-    # Check WP-CLI
-    if ! command -v wp &> /dev/null; then
-        needs_install=true
-        echo "  → WP-CLI not found"
-    fi
-
-    if [ "$needs_install" = false ]; then
-        echo "✅ All dependencies already installed"
-        return 0
-    fi
-
-    echo "📥 Installing missing dependencies..."
-    echo "  (You may be prompted for your password)"
-
-    # Update package list (quietly)
-    sudo dnf update -y -q 2>&1 | grep -v "^Last metadata" || true
-
-    # Install Docker CLI and docker-compose (NOT the daemon - we use host's daemon)
-    if ! command -v docker &> /dev/null || ! command -v docker-compose &> /dev/null; then
-        echo "  → Installing Docker CLI and docker-compose..."
-        sudo dnf install -y -q docker-compose 2>&1 | grep -E "(Installing|Installed|Complete)" || true
-    fi
-
-    # Install PHP development tools
-    if ! command -v php &> /dev/null; then
-        echo "  → Installing PHP and development tools..."
-        sudo dnf install -y -q \
-            php \
-            php-cli \
-            php-mysqlnd \
-            php-json \
-            php-xml \
-            php-mbstring \
-            php-zip \
-            php-gd \
-            php-curl \
-            composer 2>&1 | grep -E "(Installing|Installed|Complete)" || true
-    fi
-
-    # Install MySQL client for debugging
-    if ! command -v mysql &> /dev/null; then
-        echo "  → Installing MySQL client..."
-        sudo dnf install -y -q mysql 2>&1 | grep -E "(Installing|Installed|Complete)" || true
-    fi
-
-    # Install WordPress CLI
-    if ! command -v wp &> /dev/null; then
-        echo "  → Installing WP-CLI..."
-        curl -sS -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar 2>/dev/null
-        chmod +x wp-cli.phar
-        sudo mv wp-cli.phar /usr/local/bin/wp
-    fi
-
-    echo "✅ Dependencies installed"
-}
-
-# Fix SELinux permissions for Docker volumes
-fix_selinux_permissions() {
-    if ! command -v chcon &> /dev/null; then
-        # Not on SELinux system, skip
-        return 0
-    fi
-
-    # Create volume directories if they don't exist
-    mkdir -p "$PROJECT_ROOT/docker-volumes/mysql"
-    mkdir -p "$PROJECT_ROOT/docker-volumes/wordpress"
-
-    # Set SELinux context (svirt_sandbox_file_t allows container access)
-    # Use chcon from host if available, otherwise skip (Docker :Z flag will handle it)
-    if sudo chcon -Rt svirt_sandbox_file_t "$PROJECT_ROOT/docker-volumes/" 2>/dev/null; then
-        echo "✅ SELinux permissions configured"
-    else
-        echo "ℹ️  SELinux relabeling skipped (Docker :Z flag will handle it)"
-    fi
-}
-
-# Start Docker Compose stack
-start_stack() {
-    echo "🚀 Starting WordPress + MySQL stack..."
-    echo ""
-    echo "  WordPress: http://localhost:8080"
-    echo "  Admin:     http://localhost:8080/wp-admin"
-    echo ""
-    echo "  Default credentials (first time setup):"
-    echo "    Username: admin"
-    echo "    Password: admin"
-    echo ""
-    echo "Press Ctrl+C to stop"
-    echo ""
+# Clean: stop containers and remove volumes
+clean() {
+    echo "🧹 Cleaning WordPress installation..."
 
     cd "$PROJECT_ROOT"
 
-    # Run docker-compose up with logs to STDOUT
-    # Docker automatically prefixes logs with service name
-    docker-compose up
-}
-
-# Stop Docker Compose stack
-stop_stack() {
-    echo "🛑 Stopping containers..."
-    cd "$PROJECT_ROOT"
-    docker-compose down
-    echo "✅ Containers stopped"
-}
-
-# Clean Docker Compose stack (DESTRUCTIVE)
-clean_stack() {
-    echo "⚠️  WARNING: This will delete all data (MySQL database, WordPress files)"
-    read -p "Are you sure? (y/N) " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        echo "🗑️  Removing containers and volumes..."
-        cd "$PROJECT_ROOT"
-        docker-compose down -v
-        rm -rf "$PROJECT_ROOT/docker-volumes/"
-        echo "✅ Cleaned"
+    # Stop containers
+    if podman-compose ps 2>/dev/null | grep -q "Up"; then
+        echo "  Stopping containers..."
+        podman-compose down
     else
-        echo "Cancelled"
+        echo "  Containers not running"
+    fi
+
+    # Remove volumes
+    echo "  Removing volumes..."
+    podman volume rm wordpress_db wordpress_files 2>/dev/null || echo "  No volumes to remove"
+
+    echo "✅ Clean complete."
+}
+
+# Clean and install WordPress automatically
+clean_and_install() {
+    echo "🚀 Starting fresh WordPress installation..."
+
+    clean
+
+    cd "$PROJECT_ROOT"
+
+    # Start containers
+    echo "  Starting containers..."
+    podman-compose up -d
+
+    # Wait for MySQL
+    echo "  Waiting for MySQL to be ready..."
+    local retries=0
+    local max_retries=30
+    while ! podman exec mysql mysqladmin ping -h localhost --silent 2>/dev/null; do
+        retries=$((retries + 1))
+        if [[ $retries -ge $max_retries ]]; then
+            echo "❌ MySQL failed to start after ${max_retries} seconds"
+            exit 1
+        fi
+        sleep 1
+    done
+    echo "  MySQL ready!"
+
+    # Wait for WordPress
+    echo "  Waiting for WordPress to be ready..."
+    sleep 5
+
+    # Generate random credentials
+    RANDOM_SUFFIX=$(date +%s | sha256sum | head -c 8)
+    ADMIN_USER="admin_${RANDOM_SUFFIX}"
+    ADMIN_PASS="pass_$(openssl rand -hex 12)"
+    SITE_TITLE="iNat Dev $(date '+%Y-%m-%d %H:%M')"
+
+    # Check if WP-CLI is available
+    if ! podman exec wordpress wp --version --allow-root &>/dev/null; then
+        echo "❌ WP-CLI not found in WordPress container"
+        echo "   Please install WP-CLI in the WordPress container"
+        echo "   Container is running at http://localhost:8080"
+        echo "   Complete manual installation, then use this script"
+        exit 1
+    fi
+
+    # Install WordPress via WP-CLI
+    echo "  Installing WordPress..."
+    podman exec wordpress wp core install \
+        --url="http://localhost:8080" \
+        --title="$SITE_TITLE" \
+        --admin_user="$ADMIN_USER" \
+        --admin_password="$ADMIN_PASS" \
+        --admin_email="dev@localhost" \
+        --skip-email \
+        --allow-root
+
+    # Activate plugin
+    echo "  Activating iNat Observations plugin..."
+    podman exec wordpress wp plugin activate inat-observations-wp --allow-root || {
+        echo "  Warning: Plugin activation failed (may not be symlinked yet)"
+    }
+
+    # Configure plugin
+    echo "  Configuring plugin..."
+    podman exec wordpress wp option update inat_obs_project_id "sdmyco" --allow-root
+    podman exec wordpress wp option update inat_obs_refresh_rate "daily" --allow-root
+    podman exec wordpress wp option update inat_obs_api_fetch_size "2000" --allow-root
+    podman exec wordpress wp option update inat_obs_display_page_size "50" --allow-root
+
+    # Run initial refresh (in background to avoid timeout)
+    echo "  Triggering initial data refresh (background)..."
+    podman exec wordpress wp cron event run inat_obs_refresh --allow-root &>/dev/null &
+
+    # Print credentials
+    echo ""
+    echo "✅ WordPress installed successfully!"
+    echo ""
+    echo "📋 Login Credentials:"
+    echo "   URL:      http://localhost:8080/wp-admin"
+    echo "   Username: $ADMIN_USER"
+    echo "   Password: $ADMIN_PASS"
+    echo ""
+    echo "🔌 Plugin Status:"
+    echo "   iNat Observations: Activated (if symlinked)"
+    echo "   Project:          sdmyco"
+    echo "   Refresh Rate:     Daily"
+    echo "   API Fetch Size:   2000"
+    echo "   Display Size:     50"
+    echo ""
+    echo "📝 Next Steps:"
+    echo "   1. Open http://localhost:8080/wp-admin in your browser"
+    echo "   2. Log in with the credentials above"
+    echo "   3. Go to Settings → iNat Observations"
+    echo "   4. Click 'Refresh Now' to fetch observations"
+    echo "   5. Create a page with [inat_observations] shortcode"
+    echo ""
+
+    # Optionally open browser
+    if command -v xdg-open &> /dev/null; then
+        read -p "Open browser? [y/N] " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            xdg-open "http://localhost:8080/wp-admin"
+        fi
     fi
 }
 
-# === Main ===
+# Start containers
+start() {
+    echo "🐳 Starting WordPress development environment..."
 
-# Parse arguments
-case "${1:-}" in
-    --stop)
-        if is_inside_toolbox; then
-            stop_stack
-        else
-            toolbox run -c "$TOOLBOX_NAME" "$0" --stop
-        fi
-        exit 0
-        ;;
-    --clean)
-        if is_inside_toolbox; then
-            clean_stack
-        else
-            toolbox run -c "$TOOLBOX_NAME" "$0" --clean
-        fi
-        exit 0
-        ;;
-    --help|-h)
-        echo "Usage: ./inat.sh [OPTION]"
-        echo ""
-        echo "Options:"
-        echo "  (none)    Start development environment"
-        echo "  --stop    Stop Docker containers"
-        echo "  --clean   Stop and remove all data (DESTRUCTIVE)"
-        echo "  --help    Show this help message"
-        exit 0
-        ;;
-esac
+    cd "$PROJECT_ROOT"
 
-# Check if inside toolbox
-if ! is_inside_toolbox; then
-    echo "🏠 Running on host - entering toolbox..."
-
-    # Create toolbox if needed
-    if ! toolbox_exists; then
-        create_toolbox
+    # Check if containers running
+    if podman-compose ps 2>/dev/null | grep -q "Up"; then
+        echo "✅ Containers already running"
+    else
+        echo "  Starting containers..."
+        podman-compose up -d
+        sleep 3
     fi
 
-    # Re-execute script inside toolbox
-    exec toolbox run -c "$TOOLBOX_NAME" "$PROJECT_ROOT/inat.sh" "$@"
-fi
-
-# Now inside toolbox
-echo "📦 Inside toolbox '$TOOLBOX_NAME'"
-
-# Install dependencies
-install_dependencies
-
-# Fix SELinux permissions
-fix_selinux_permissions
-
-# Check if Docker daemon is accessible
-# In a toolbox, we use the host's Docker daemon via /var/run/docker.sock
-echo "🐳 Checking Docker daemon..."
-if docker info &>/dev/null; then
-    echo "✅ Docker daemon accessible"
-else
-    echo "❌ Cannot connect to Docker daemon"
     echo ""
-    echo "Troubleshooting steps:"
-    echo "1. On the HOST (outside toolbox), ensure Docker is running:"
-    echo "   sudo systemctl start docker"
-    echo "   sudo systemctl enable docker"
+    echo "📍 WordPress:     http://localhost:8080"
+    echo "📍 Admin:         http://localhost:8080/wp-admin"
+    echo "📍 Plugin:        wp-content/plugins/inat-observations-wp/"
     echo ""
-    echo "2. On the HOST, add your user to docker group:"
-    echo "   sudo usermod -aG docker $USER"
-    echo "   newgrp docker"
+    echo "💡 Commands:"
+    echo "   ./inat.sh --clean              Wipe all data"
+    echo "   ./inat.sh --clean-and-install  Fresh install with auto-config"
+    echo "   ./inat.sh logs                 View container logs"
     echo ""
-    echo "3. Exit and re-enter the toolbox:"
-    echo "   exit"
-    echo "   toolbox enter inat-observations"
-    echo ""
-    exit 1
-fi
+}
 
-# Start stack
-start_stack
+# Show logs
+show_logs() {
+    cd "$PROJECT_ROOT"
+    echo "📜 Showing container logs (Ctrl+C to exit)..."
+    podman-compose logs -f
+}
+
+# Main entry point
+main() {
+    # If on Silverblue and not inside toolbox, re-exec inside toolbox
+    if is_silverblue && ! is_inside_toolbox; then
+        echo "🔧 Detected Fedora Silverblue - entering toolbox..."
+
+        # Check if toolbox exists
+        if ! toolbox list 2>/dev/null | grep -q "$TOOLBOX_NAME"; then
+            echo "  Creating toolbox: $TOOLBOX_NAME"
+            toolbox create "$TOOLBOX_NAME"
+        fi
+
+        # Re-execute this script inside toolbox
+        exec toolbox run -c "$TOOLBOX_NAME" "$0" "$@"
+    fi
+
+    # Now inside toolbox (or on non-Silverblue system)
+    cd "$PROJECT_ROOT"
+
+    # Check for podman-compose
+    if ! command -v podman-compose &> /dev/null; then
+        echo "❌ podman-compose not found"
+        echo "   Install it with: pip install podman-compose"
+        echo "   Or on Fedora: sudo dnf install podman-compose"
+        exit 1
+    fi
+
+    # Parse command
+    case "${1:-}" in
+        --clean)
+            clean
+            ;;
+        --clean-and-install)
+            clean_and_install
+            ;;
+        logs)
+            show_logs
+            ;;
+        "")
+            start
+            ;;
+        *)
+            echo "❌ Unknown command: $1"
+            echo ""
+            echo "Usage:"
+            echo "  ./inat.sh                    Start WordPress"
+            echo "  ./inat.sh --clean            Wipe all data"
+            echo "  ./inat.sh --clean-and-install Fresh install"
+            echo "  ./inat.sh logs               View logs"
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
