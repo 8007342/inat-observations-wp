@@ -28,11 +28,33 @@ if ($is_unit_test) {
     // Brain\Monkey and Mockery are loaded via Composer autoloader
     // Individual test files will call Brain\Monkey\setUp() and tearDown()
 
+    // Define WordPress constants
+    if (!defined('ABSPATH')) {
+        define('ABSPATH', '/tmp/wordpress/');
+    }
+    if (!defined('ARRAY_A')) {
+        define('ARRAY_A', 'ARRAY_A');
+    }
+    if (!defined('ARRAY_N')) {
+        define('ARRAY_N', 'ARRAY_N');
+    }
+    if (!defined('OBJECT')) {
+        define('OBJECT', 'OBJECT');
+    }
+    if (!defined('OBJECT_K')) {
+        define('OBJECT_K', 'OBJECT_K');
+    }
+
     // Define WordPress functions needed for coverage processing
     // These are called when files are loaded for coverage analysis
     if (!function_exists('plugin_dir_path')) {
         function plugin_dir_path($file) {
             return dirname($file) . '/';
+        }
+    }
+    if (!function_exists('plugin_dir_url')) {
+        function plugin_dir_url($file) {
+            return 'http://example.com/wp-content/plugins/' . basename(dirname($file)) . '/';
         }
     }
     if (!function_exists('register_activation_hook')) {

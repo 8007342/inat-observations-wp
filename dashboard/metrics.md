@@ -1,24 +1,24 @@
 # iNaturalist Observations WP - Project Metrics
 
-**Generated:** 2026-01-07T02:44:39+00:00
-**Git Commit:** 6b087ed
+**Generated:** 2026-01-07T03:02:29+00:00
+**Git Commit:** 684fb29
 
 ---
 
 ## Overall Project Health
 
-🔴 **56/100** - Critical
+🔴 **69.4/100** - Needs Improvement
 
 ## Code Coverage
 
 | Metric | Coverage | Status |
 |--------|----------|--------|
-| **Line Coverage** | 11.94% | 🔴 Critical |
+| **Line Coverage** | 38.81% | 🔴 Critical |
 | **Function Coverage** | 0% | 🔴 Critical |
 | **Class Coverage** | 0% | 🔴 Critical |
 
 **Summary:**
-- Total Lines: 40/335
+- Total Lines: 130/335
 - Total Methods: 0/0
 - Total Classes: 0/0
 
@@ -29,10 +29,10 @@ Files sorted by coverage (lowest first - needs attention):
 | File | Coverage | Lines | Status |
 |------|----------|-------|--------|
 | admin.php | 0% | 0/119 | 🔴 |
-| db-schema.php | 0% | 0/25 | 🔴 |
 | init.php | 0% | 0/44 | 🔴 |
-| rest.php | 0% | 0/44 | 🔴 |
-| shortcode.php | 0% | 0/61 | 🔴 |
+| shortcode.php | 60.66% | 37/61 | 🟡 |
+| db-schema.php | 72% | 18/25 | 🟡 |
+| rest.php | 79.55% | 35/44 | 🟡 |
 | api.php | 95.24% | 40/42 | 🟢 |
 
 **Target:** 97%+ line coverage

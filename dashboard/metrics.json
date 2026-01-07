@@ -1,13 +1,13 @@
 {
-    "generated": "2026-01-07T02:44:39+00:00",
-    "git_commit": "6b087ed",
+    "generated": "2026-01-07T03:02:29+00:00",
+    "git_commit": "684fb29",
     "coverage": {
         "status": "success",
-        "line_percentage": 11.94,
+        "line_percentage": 38.81,
         "function_percentage": 0,
         "class_percentage": 0,
         "total_lines": 335,
-        "covered_lines": 40,
+        "covered_lines": 130,
         "total_methods": 0,
         "covered_methods": 0,
         "total_classes": 0,
@@ -22,14 +22,6 @@
                 "status": "critical"
             },
             {
-                "file": "db-schema.php",
-                "path": "wp-content/plugins/inat-observations-wp/includes/db-schema.php",
-                "line_coverage": 0,
-                "total_lines": 25,
-                "covered_lines": 0,
-                "status": "critical"
-            },
-            {
                 "file": "init.php",
                 "path": "wp-content/plugins/inat-observations-wp/includes/init.php",
                 "line_coverage": 0,
@@ -38,20 +30,28 @@
                 "status": "critical"
             },
             {
-                "file": "rest.php",
-                "path": "wp-content/plugins/inat-observations-wp/includes/rest.php",
-                "line_coverage": 0,
-                "total_lines": 44,
-                "covered_lines": 0,
-                "status": "critical"
-            },
-            {
                 "file": "shortcode.php",
                 "path": "wp-content/plugins/inat-observations-wp/includes/shortcode.php",
-                "line_coverage": 0,
+                "line_coverage": 60.66,
                 "total_lines": 61,
-                "covered_lines": 0,
-                "status": "critical"
+                "covered_lines": 37,
+                "status": "warning"
+            },
+            {
+                "file": "db-schema.php",
+                "path": "wp-content/plugins/inat-observations-wp/includes/db-schema.php",
+                "line_coverage": 72,
+                "total_lines": 25,
+                "covered_lines": 18,
+                "status": "warning"
+            },
+            {
+                "file": "rest.php",
+                "path": "wp-content/plugins/inat-observations-wp/includes/rest.php",
+                "line_coverage": 79.55,
+                "total_lines": 44,
+                "covered_lines": 35,
+                "status": "warning"
             },
             {
                 "file": "api.php",
