@@ -22,8 +22,12 @@ class RestEnhancedTest extends PHPUnit\Framework\TestCase {
         parent::setUp();
         Monkey\setUp();
 
+        // Define WordPress constants needed by rest.php
         if (!defined('ABSPATH')) {
             define('ABSPATH', '/tmp/wordpress/');
+        }
+        if (!defined('ARRAY_A')) {
+            define('ARRAY_A', 'ARRAY_A');
         }
 
         // Load the file being tested
@@ -48,10 +52,17 @@ class RestEnhancedTest extends PHPUnit\Framework\TestCase {
         $wpdb->prefix = 'wp_';
         $wpdb->last_error = '';
         $captured_sql = null;
-        $captured_args = [];
-        $wpdb->shouldReceive('prepare')->andReturnUsing(function($sql, ...$args) use (&$captured_sql, &$captured_args) {
+        $all_captured_args = [];
+        $wpdb->shouldReceive('prepare')->andReturnUsing(function($sql, ...$args) use (&$captured_sql, &$all_captured_args) {
             $captured_sql = $sql;
-            $captured_args = $args;
+            // Handle both array args and individual args (prepare can receive an array)
+            foreach ($args as $arg) {
+                if (is_array($arg)) {
+                    $all_captured_args = array_merge($all_captured_args, $arg);
+                } else {
+                    $all_captured_args[] = $arg;
+                }
+            }
             return $sql;
         });
         $wpdb->shouldReceive('get_results')->andReturn([]);
@@ -71,10 +82,10 @@ class RestEnhancedTest extends PHPUnit\Framework\TestCase {
         $this->assertStringContainsString('UPPER(species_guess) = %s', $captured_sql);
         $this->assertStringContainsString('OR', $captured_sql);
 
-        // Verify uppercase values are passed
-        $this->assertContains('ROBIN', $captured_args);
-        $this->assertContains('SPARROW', $captured_args);
-        $this->assertContains('EAGLE', $captured_args);
+        // Verify uppercase values are passed (check accumulated args from all prepare() calls)
+        $this->assertContains('ROBIN', $all_captured_args);
+        $this->assertContains('SPARROW', $all_captured_args);
+        $this->assertContains('EAGLE', $all_captured_args);
     }
 
     /**
@@ -90,10 +101,17 @@ class RestEnhancedTest extends PHPUnit\Framework\TestCase {
         $wpdb->prefix = 'wp_';
         $wpdb->last_error = '';
         $captured_sql = null;
-        $captured_args = [];
-        $wpdb->shouldReceive('prepare')->andReturnUsing(function($sql, ...$args) use (&$captured_sql, &$captured_args) {
+        $all_captured_args = [];
+        $wpdb->shouldReceive('prepare')->andReturnUsing(function($sql, ...$args) use (&$captured_sql, &$all_captured_args) {
             $captured_sql = $sql;
-            $captured_args = $args;
+            // Handle both array args and individual args (prepare can receive an array)
+            foreach ($args as $arg) {
+                if (is_array($arg)) {
+                    $all_captured_args = array_merge($all_captured_args, $arg);
+                } else {
+                    $all_captured_args[] = $arg;
+                }
+            }
             return $sql;
         });
         $wpdb->shouldReceive('get_results')->andReturn([]);
@@ -113,9 +131,9 @@ class RestEnhancedTest extends PHPUnit\Framework\TestCase {
         $this->assertStringContainsString('UPPER(place_guess) = %s', $captured_sql);
         $this->assertStringContainsString('OR', $captured_sql);
 
-        // Verify uppercase values are passed
-        $this->assertContains('CALIFORNIA', $captured_args);
-        $this->assertContains('OREGON', $captured_args);
+        // Verify uppercase values are passed (check accumulated args from all prepare() calls)
+        $this->assertContains('CALIFORNIA', $all_captured_args);
+        $this->assertContains('OREGON', $all_captured_args);
     }
 
     /**
@@ -169,7 +187,16 @@ class RestEnhancedTest extends PHPUnit\Framework\TestCase {
         $captured_pattern = null;
         $wpdb->shouldReceive('prepare')->andReturnUsing(function($sql, ...$args) use (&$captured_sql, &$captured_pattern) {
             $captured_sql = $sql;
-            $captured_pattern = end($args); // Last arg should be DNA pattern
+            // Handle array args (prepare can receive an array)
+            $all_args = [];
+            foreach ($args as $arg) {
+                if (is_array($arg)) {
+                    $all_args = array_merge($all_args, $arg);
+                } else {
+                    $all_args[] = $arg;
+                }
+            }
+            $captured_pattern = end($all_args); // Last arg should be DNA pattern
             return $sql;
         });
         $wpdb->shouldReceive('get_results')->andReturn([]);
@@ -213,7 +240,16 @@ class RestEnhancedTest extends PHPUnit\Framework\TestCase {
         $wpdb->last_error = '';
         $captured_pattern = null;
         $wpdb->shouldReceive('prepare')->andReturnUsing(function($sql, ...$args) use (&$captured_pattern) {
-            $captured_pattern = end($args);
+            // Handle array args (prepare can receive an array)
+            $all_args = [];
+            foreach ($args as $arg) {
+                if (is_array($arg)) {
+                    $all_args = array_merge($all_args, $arg);
+                } else {
+                    $all_args[] = $arg;
+                }
+            }
+            $captured_pattern = end($all_args);
             return $sql;
         });
         $wpdb->shouldReceive('get_results')->andReturn([]);

@@ -17,8 +17,12 @@ class RestTest extends PHPUnit\Framework\TestCase {
         parent::setUp();
         Monkey\setUp();
 
+        // Define WordPress constants needed by rest.php
         if (!defined('ABSPATH')) {
             define('ABSPATH', '/tmp/wordpress/');
+        }
+        if (!defined('ARRAY_A')) {
+            define('ARRAY_A', 'ARRAY_A');
         }
 
         // Load the file being tested
@@ -41,10 +45,12 @@ class RestTest extends PHPUnit\Framework\TestCase {
         // Mock wpdb
         $wpdb = Mockery::mock('wpdb');
         $wpdb->prefix = 'wp_';
+        $wpdb->last_error = '';
         $wpdb->shouldReceive('prepare')->andReturn('SELECT * FROM wp_inat_observations');
         $wpdb->shouldReceive('get_results')->andReturn([
             ['id' => 1, 'species_guess' => 'Test Species', 'metadata' => '{}']
         ]);
+        $wpdb->shouldReceive('get_var')->andReturn(10); // Total count for pagination
 
         $GLOBALS['wpdb'] = $wpdb;
 
@@ -74,11 +80,13 @@ class RestTest extends PHPUnit\Framework\TestCase {
 
         $wpdb = Mockery::mock('wpdb');
         $wpdb->prefix = 'wp_';
+        $wpdb->last_error = '';
         $wpdb->shouldReceive('prepare')->andReturnUsing(function($sql, ...$args) use (&$captured_args) {
             $captured_args = $args;
             return vsprintf(str_replace(['%d', '%s'], ['%d', "'%s'"], $sql), $args);
         });
         $wpdb->shouldReceive('get_results')->andReturn([]);
+        $wpdb->shouldReceive('get_var')->andReturn(100); // Total count for pagination
 
         $GLOBALS['wpdb'] = $wpdb;
 
@@ -103,12 +111,14 @@ class RestTest extends PHPUnit\Framework\TestCase {
 
         $wpdb = Mockery::mock('wpdb');
         $wpdb->prefix = 'wp_';
+        $wpdb->last_error = '';
         $captured_limit = null;
         $wpdb->shouldReceive('prepare')->andReturnUsing(function($sql, ...$args) use (&$captured_limit) {
             $captured_limit = $args[0] ?? null;
             return $sql;
         });
         $wpdb->shouldReceive('get_results')->andReturn([]);
+        $wpdb->shouldReceive('get_var')->andReturn(50); // Total count
 
         $GLOBALS['wpdb'] = $wpdb;
 
@@ -133,6 +143,7 @@ class RestTest extends PHPUnit\Framework\TestCase {
 
         $wpdb = Mockery::mock('wpdb');
         $wpdb->prefix = 'wp_';
+        $wpdb->last_error = '';
         $wpdb->shouldReceive('esc_like')->andReturnUsing(function($text) {
             return addcslashes($text, '_%\\');
         });
@@ -142,6 +153,7 @@ class RestTest extends PHPUnit\Framework\TestCase {
             return vsprintf(str_replace(['%d', '%s'], ['%d', "'%s'"], $sql), $args);
         });
         $wpdb->shouldReceive('get_results')->andReturn([]);
+        $wpdb->shouldReceive('get_var')->andReturn(25); // Total count
 
         $GLOBALS['wpdb'] = $wpdb;
 
@@ -149,6 +161,7 @@ class RestTest extends PHPUnit\Framework\TestCase {
         Functions\when('wp_cache_get')->justReturn(false);
         Functions\when('wp_cache_set')->justReturn(true);
         Functions\when('rest_ensure_response')->returnArg();
+        Functions\when('get_option')->justReturn('name'); // DNA field property
 
         inat_obs_rest_get_observations($request);
 
@@ -168,6 +181,7 @@ class RestTest extends PHPUnit\Framework\TestCase {
 
         $wpdb = Mockery::mock('wpdb');
         $wpdb->prefix = 'wp_';
+        $wpdb->last_error = '';
         $wpdb->shouldReceive('esc_like')->andReturnUsing(function($text) {
             return addcslashes($text, '_%\\');
         });
@@ -177,6 +191,7 @@ class RestTest extends PHPUnit\Framework\TestCase {
             return $sql;
         });
         $wpdb->shouldReceive('get_results')->andReturn([]);
+        $wpdb->shouldReceive('get_var')->andReturn(30); // Total count
 
         $GLOBALS['wpdb'] = $wpdb;
 
@@ -184,6 +199,7 @@ class RestTest extends PHPUnit\Framework\TestCase {
         Functions\when('wp_cache_get')->justReturn(false);
         Functions\when('wp_cache_set')->justReturn(true);
         Functions\when('rest_ensure_response')->returnArg();
+        Functions\when('get_option')->justReturn('name'); // DNA field property
 
         inat_obs_rest_get_observations($request);
 
@@ -203,6 +219,7 @@ class RestTest extends PHPUnit\Framework\TestCase {
 
         $wpdb = Mockery::mock('wpdb');
         $wpdb->prefix = 'wp_';
+        $wpdb->last_error = '';
         $wpdb->shouldReceive('esc_like')->andReturnUsing(function($text) {
             return addcslashes($text, '_%\\');
         });
@@ -212,6 +229,7 @@ class RestTest extends PHPUnit\Framework\TestCase {
             return $sql;
         });
         $wpdb->shouldReceive('get_results')->andReturn([]);
+        $wpdb->shouldReceive('get_var')->andReturn(15); // Total count
 
         $GLOBALS['wpdb'] = $wpdb;
 
@@ -219,6 +237,7 @@ class RestTest extends PHPUnit\Framework\TestCase {
         Functions\when('wp_cache_get')->justReturn(false);
         Functions\when('wp_cache_set')->justReturn(true);
         Functions\when('rest_ensure_response')->returnArg();
+        Functions\when('get_option')->justReturn('name'); // DNA field property
 
         inat_obs_rest_get_observations($request);
 
@@ -241,12 +260,21 @@ class RestTest extends PHPUnit\Framework\TestCase {
 
         $wpdb = Mockery::mock('wpdb');
         $wpdb->prefix = 'wp_';
+        $wpdb->last_error = '';
         // get_results should NOT be called when cache hit
         $wpdb->shouldReceive('get_results')->never();
 
         $GLOBALS['wpdb'] = $wpdb;
 
-        Functions\when('wp_cache_get')->justReturn($cached_data);
+        // Mock cache to return both results and count
+        $cache_call_count = 0;
+        Functions\when('wp_cache_get')->alias(function($key) use ($cached_data, &$cache_call_count) {
+            $cache_call_count++;
+            if ($cache_call_count === 1) {
+                return $cached_data; // First call: results
+            }
+            return 1; // Second call: count
+        });
         Functions\when('rest_ensure_response')->returnArg();
 
         $result = inat_obs_rest_get_observations($request);
@@ -264,6 +292,7 @@ class RestTest extends PHPUnit\Framework\TestCase {
 
         $wpdb = Mockery::mock('wpdb');
         $wpdb->prefix = 'wp_';
+        $wpdb->last_error = '';
         $wpdb->shouldReceive('prepare')->andReturn('SELECT * FROM wp_inat_observations');
         $wpdb->shouldReceive('get_results')->andReturn([
             [
@@ -272,12 +301,14 @@ class RestTest extends PHPUnit\Framework\TestCase {
                 'metadata' => '{"field1": "value1", "field2": "value2"}'
             ]
         ]);
+        $wpdb->shouldReceive('get_var')->andReturn(1); // Total count
 
         $GLOBALS['wpdb'] = $wpdb;
 
         Functions\when('wp_cache_get')->justReturn(false);
         Functions\when('wp_cache_set')->justReturn(true);
         Functions\when('rest_ensure_response')->returnArg();
+        Functions\when('get_option')->justReturn('name'); // DNA field property
 
         $result = inat_obs_rest_get_observations($request);
 
@@ -298,11 +329,13 @@ class RestTest extends PHPUnit\Framework\TestCase {
 
         $wpdb = Mockery::mock('wpdb');
         $wpdb->prefix = 'wp_';
+        $wpdb->last_error = '';
         $wpdb->shouldReceive('esc_like')->andReturnUsing(function($text) {
             return addcslashes($text, '_%\\');
         });
         $wpdb->shouldReceive('prepare')->andReturn('SELECT');
         $wpdb->shouldReceive('get_results')->andReturn([]);
+        $wpdb->shouldReceive('get_var')->andReturn(0); // Total count
 
         $GLOBALS['wpdb'] = $wpdb;
 
@@ -314,6 +347,7 @@ class RestTest extends PHPUnit\Framework\TestCase {
         Functions\when('wp_cache_get')->justReturn(false);
         Functions\when('wp_cache_set')->justReturn(true);
         Functions\when('rest_ensure_response')->returnArg();
+        Functions\when('get_option')->justReturn('name'); // DNA field property
 
         inat_obs_rest_get_observations($request);
 
