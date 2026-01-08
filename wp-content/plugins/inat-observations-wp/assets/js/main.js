@@ -64,6 +64,11 @@
       location: null
     };
 
+    // DOM persistence - create containers once, never replace them
+    let filterBarContainer = null;
+    let resultsContainer = null;
+    let isFirstRender = true;
+
     // Function to fetch and render observations
     function fetchObservations() {
       console.log('[iNat] Fetching observations...', { page: currentPage, perPage: currentPerPage });
@@ -168,50 +173,47 @@
             textFiltersVisible = true;
           }
 
-          // Filter bar - Unified search with DNA checkbox (invisible frame for positioning, mobile-optimized)
-          let filterHtml = '<div id="inat-filter-bar" style="margin-bottom: 15px; padding: 12px; border: 1px solid transparent; border-radius: 4px; background: transparent; max-width: 100%; position: relative; z-index: 100000; box-sizing: border-box;">';
+          // Filter bar - Split into static controls and dynamic chips
+          // Static controls (DNA checkbox + search input) - set once
+          let staticControlsHtml = '<div id="inat-filter-bar" style="margin-bottom: 15px; padding: 12px; border: 1px solid transparent; border-radius: 4px; background: transparent; max-width: 100%; position: relative; z-index: 100000; box-sizing: border-box;">';
+          staticControlsHtml += '<div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: 100%; position: relative;">';
+          staticControlsHtml += '<label style="display: flex; align-items: center; gap: 6px; font-size: 20px; cursor: pointer; padding: 6px 10px; background: white; border: 2px solid ' + (currentFilters.hasDNA ? '#2271b1' : '#ddd') + '; border-radius: 4px; transition: all 0.2s;">';
+          staticControlsHtml += '<input type="checkbox" id="inat-filter-dna" ' + (currentFilters.hasDNA ? 'checked' : '') + ' style="width: 18px; height: 18px; cursor: pointer;">';
+          staticControlsHtml += '<span style="line-height: 1;">🧬</span>';
+          staticControlsHtml += '</label>';
+          staticControlsHtml += '<div style="position: relative; flex: 1; min-width: 200px; max-width: 100%; overflow: visible; z-index: 100001;">';
+          staticControlsHtml += '<input type="text" id="inat-unified-search" placeholder="Search species or location..." style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box;">';
+          staticControlsHtml += '</div>';
+          staticControlsHtml += '</div>';
 
-          // Main filter row: DNA checkbox + unified search input
-          filterHtml += '<div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: 100%; position: relative;">';
+          // Chips container (dynamic, updated every render)
+          staticControlsHtml += '<div id="inat-filter-chips"></div>';
+          staticControlsHtml += '</div>';
 
-          // DNA checkbox (compact - just emoji, no text for mobile)
-          filterHtml += '<label style="display: flex; align-items: center; gap: 6px; font-size: 20px; cursor: pointer; padding: 6px 10px; background: white; border: 2px solid ' + (currentFilters.hasDNA ? '#2271b1' : '#ddd') + '; border-radius: 4px; transition: all 0.2s;">';
-          filterHtml += '<input type="checkbox" id="inat-filter-dna" ' + (currentFilters.hasDNA ? 'checked' : '') + ' style="width: 18px; height: 18px; cursor: pointer;">';
-          filterHtml += '<span style="line-height: 1;">🧬</span>';
-          filterHtml += '</label>';
-
-          // Unified search input (for both species and locations)
-          filterHtml += '<div style="position: relative; flex: 1; min-width: 200px; max-width: 100%; overflow: visible; z-index: 100001;">';
-          filterHtml += '<input type="text" id="inat-unified-search" placeholder="Search species or location..." style="width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box;">';
-          filterHtml += '</div>';
-
-          filterHtml += '</div>';
-
-          // Chips row (only visible when filters are active)
+          // Dynamic chips HTML (updated every render)
+          let chipsHtml = '';
           const hasActiveFilters = currentFilters.species.length > 0 || currentFilters.location.length > 0;
           if (hasActiveFilters) {
-            filterHtml += '<div style="display: flex; gap: 5px; align-items: center; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">';
+            chipsHtml += '<div style="display: flex; gap: 5px; align-items: center; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;">';
 
             // Species chips (blue with clipboard emoji)
             currentFilters.species.forEach(name => {
-              filterHtml += '<span class="inat-chip" data-field="species" data-value="' + escapeHtml(name) + '" style="display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; background: #2271b1; color: white; border-radius: 16px; font-size: 13px; cursor: default;">';
-              filterHtml += '📋 ' + escapeHtml(name);
-              filterHtml += '<button class="inat-chip-remove" style="background: none; border: none; color: white; cursor: pointer; padding: 0; width: 18px; height: 18px; line-height: 1; font-size: 18px; margin-left: 2px;">×</button>';
-              filterHtml += '</span>';
+              chipsHtml += '<span class="inat-chip" data-field="species" data-value="' + escapeHtml(name) + '" style="display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; background: #2271b1; color: white; border-radius: 16px; font-size: 13px; cursor: default;">';
+              chipsHtml += '📋 ' + escapeHtml(name);
+              chipsHtml += '<button class="inat-chip-remove" style="background: none; border: none; color: white; cursor: pointer; padding: 0; width: 18px; height: 18px; line-height: 1; font-size: 18px; margin-left: 2px;">×</button>';
+              chipsHtml += '</span>';
             });
 
             // Location chips (green with location emoji)
             currentFilters.location.forEach(name => {
-              filterHtml += '<span class="inat-chip" data-field="location" data-value="' + escapeHtml(name) + '" style="display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; background: #2d7f3a; color: white; border-radius: 16px; font-size: 13px; cursor: default;">';
-              filterHtml += '📍 ' + escapeHtml(name);
-              filterHtml += '<button class="inat-chip-remove" style="background: none; border: none; color: white; cursor: pointer; padding: 0; width: 18px; height: 18px; line-height: 1; font-size: 18px; margin-left: 2px;">×</button>';
-              filterHtml += '</span>';
+              chipsHtml += '<span class="inat-chip" data-field="location" data-value="' + escapeHtml(name) + '" style="display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; background: #2d7f3a; color: white; border-radius: 16px; font-size: 13px; cursor: default;">';
+              chipsHtml += '📍 ' + escapeHtml(name);
+              chipsHtml += '<button class="inat-chip-remove" style="background: none; border: none; color: white; cursor: pointer; padding: 0; width: 18px; height: 18px; line-height: 1; font-size: 18px; margin-left: 2px;">×</button>';
+              chipsHtml += '</span>';
             });
 
-            filterHtml += '</div>';
+            chipsHtml += '</div>';
           }
-
-          filterHtml += '</div>';
 
           let controlsHtml = '<div id="inat-controls" style="margin-bottom: 20px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; max-width: 100%; overflow-x: auto; position: relative; z-index: 1;">';
 
@@ -387,8 +389,58 @@
             html += '</div>';
           }
 
-          // Render: filterHtml + controlsHtml + (noResultsMessage OR html)
-          listContainer.innerHTML = filterHtml + controlsHtml + (noResultsMessage || html);
+          // Render: Split into persistent filter bar and dynamic results
+          // This prevents destroying the search input and its autocomplete listeners
+          if (isFirstRender) {
+            // Create persistent containers on first render
+            filterBarContainer = document.createElement('div');
+            filterBarContainer.id = 'inat-filter-bar-container';
+
+            resultsContainer = document.createElement('div');
+            resultsContainer.id = 'inat-results-container';
+
+            // Clear listContainer and add both containers
+            listContainer.innerHTML = '';
+            listContainer.appendChild(filterBarContainer);
+            listContainer.appendChild(resultsContainer);
+
+            // Set static controls (DNA checkbox + search input) - NEVER REPLACE AFTER THIS
+            filterBarContainer.innerHTML = staticControlsHtml;
+
+            // Attach DNA checkbox event listener (ONCE - element persists)
+            const dnaCheckbox = document.getElementById('inat-filter-dna');
+            if (dnaCheckbox) {
+              dnaCheckbox.addEventListener('change', function() {
+                currentFilters.hasDNA = this.checked;
+                currentPage = 1;  // Reset to first page when filtering
+                fetchObservations();
+              });
+              console.log('[iNat] DNA checkbox listener attached');
+            }
+
+            isFirstRender = false;
+            console.log('[iNat] Created persistent filter bar with search input');
+          }
+
+          // Update chips container (doesn't touch search input or DNA checkbox)
+          const chipsContainer = document.getElementById('inat-filter-chips');
+          if (chipsContainer) {
+            chipsContainer.innerHTML = chipsHtml;
+          }
+
+          // Update DNA checkbox state (without replacing the element)
+          const dnaCheckbox = document.getElementById('inat-filter-dna');
+          if (dnaCheckbox) {
+            dnaCheckbox.checked = currentFilters.hasDNA;
+            // Update border color based on state
+            const dnaLabel = dnaCheckbox.parentElement;
+            if (dnaLabel) {
+              dnaLabel.style.borderColor = currentFilters.hasDNA ? '#2271b1' : '#ddd';
+            }
+          }
+
+          // Always update results container (controls + observations)
+          resultsContainer.innerHTML = controlsHtml + (noResultsMessage || html);
 
           // Attach event handlers
           const perPageSelect = document.getElementById('inat-per-page');
@@ -484,15 +536,8 @@
             });
           });
 
-          // DNA checkbox (THE STAR! 🧬)
-          const dnaCheckbox = document.getElementById('inat-filter-dna');
-          if (dnaCheckbox) {
-            dnaCheckbox.addEventListener('change', function() {
-              currentFilters.hasDNA = this.checked;
-              currentPage = 1;  // Reset to first page when filtering
-              fetchObservations();
-            });
-          }
+          // DNA checkbox event listener is now attached on first render only (line ~413)
+          // to prevent multiple listeners on the same persistent element
 
           // Reset All Filters button (shown in no results message)
           const resetFiltersBtn = document.getElementById('inat-reset-filters');
