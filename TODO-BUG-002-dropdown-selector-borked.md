@@ -337,3 +337,295 @@ Debugging broken autocomplete is harder than rewriting it cleanly with proper no
 8. Close bug
 
 **ETA:** < 2 hours (systematic approach with tests)
+
+---
+
+## 🚨 NEW REGRESSION: Dropdown Won't Display After First Selection
+
+**Date**: 2026-01-07 (after commit ab524a9)
+**Status**: 🔴 EXTRA BORKED
+**Impact**: CRITICAL - User experience severely degraded
+
+### Symptoms
+
+1. **First Selection Works**:
+   - User types in search input
+   - Dropdown displays with autocomplete suggestions
+   - User clicks an item
+   - Item is added to filter chips
+   - Filter query executes correctly
+
+2. **Subsequent Searches Broken**:
+   - User types in search input again
+   - Dropdown DOES NOT appear
+   - No autocomplete suggestions shown
+   - Input behaves like plain text field
+   - Page reload required to restore functionality
+
+### Root Cause Hypothesis
+
+**The Problem**: `initializeAutocomplete()` runs once after cache loads, but `fetchObservations()` rebuilds the HTML, replacing the search input element.
+
+**Evidence**:
+```javascript
+// This runs ONCE (main.js:928)
+function initializeAutocomplete() {
+  const unifiedSearch = document.getElementById('inat-unified-search');
+  // ... creates wrapper, dropdown, attaches event listeners
+}
+
+// This runs EVERY TIME filters change (main.js:68-533)
+function fetchObservations() {
+  // ...
+  listContainer.innerHTML = controlsHtml + filterChipsHtml + (noResultsMessage || html);
+  // ^^^ THIS REPLACES THE SEARCH INPUT!
+}
+```
+
+**What Happens**:
+1. Page loads → `initializeAutocomplete()` runs → wraps input, attaches listeners
+2. User selects item → `fetchObservations()` runs → `innerHTML` replaces ALL content
+3. New input element created (same ID), but:
+   - Not wrapped by autocomplete wrapper
+   - No event listeners attached
+   - Dropdown container doesn't exist
+4. User types → nothing happens (no `input` event listener)
+
+### Investigation Checklist
+
+**Before Fixing, Verify**:
+- [ ] Check if `unifiedSearch` element still exists after render
+- [ ] Check if wrapper element persists
+- [ ] Check if dropdown container persists
+- [ ] Check browser console for "element not found" errors
+- [ ] Check if event listeners are still attached (use Event Listener Inspector)
+
+**Root Cause Confirmation**:
+- [ ] Does the input element ID change? (shouldn't)
+- [ ] Is the input element inside `listContainer`? (it is!)
+- [ ] Does `innerHTML =` destroy child elements? (YES!)
+- [ ] Are new elements created with same ID? (yes)
+- [ ] Do event listeners transfer to new elements? (NO!)
+
+### Potential Solutions
+
+**Option A: Move Search Input Outside Re-rendered Container** ✅ RECOMMENDED
+```javascript
+// Keep search input outside of listContainer
+// Only re-render observation results, not filters
+```
+
+**Benefits**:
+- Search input persists across renders
+- Event listeners never lost
+- Dropdown container persists
+- Cleanest solution
+
+**Implementation**:
+1. Split HTML into two containers: `filtersContainer` + `resultsContainer`
+2. Only update `resultsContainer.innerHTML` in `fetchObservations()`
+3. Never touch `filtersContainer` after initial render
+
+**Option B: Re-initialize Autocomplete After Each Render** ❌ BAD
+```javascript
+function fetchObservations() {
+  // ...
+  listContainer.innerHTML = controlsHtml + ...;
+  
+  // Re-attach autocomplete (defeats caching purpose!)
+  initializeAutocomplete();
+}
+```
+
+**Problems**:
+- Defeats the purpose of caching
+- Inefficient (re-attaches listeners every time)
+- Race conditions with async cache loading
+
+**Option C: Use Event Delegation on Parent** ⚠️ COMPLEX
+```javascript
+// Attach listeners to parent that never changes
+document.addEventListener('input', function(e) {
+  if (e.target.id === 'inat-unified-search') {
+    // Handle autocomplete
+  }
+});
+```
+
+**Problems**:
+- Harder to maintain
+- Still need to preserve dropdown container
+- Doesn't solve wrapper/dropdown persistence
+
+### Implementation Plan (Recommended: Option A)
+
+**Step 1: Separate Containers**
+```javascript
+// Create persistent filter container (NEVER re-rendered)
+const filterBarContainer = document.createElement('div');
+filterBarContainer.id = 'inat-filter-bar-persistent';
+
+// Create results container (re-rendered on every fetch)
+const resultsContainer = document.createElement('div');
+resultsContainer.id = 'inat-results';
+
+listContainer.appendChild(filterBarContainer);
+listContainer.appendChild(resultsContainer);
+```
+
+**Step 2: Move Filter HTML to Persistent Container**
+```javascript
+// Build filter bar HTML (DNA checkbox, search input, chips)
+filterBarContainer.innerHTML = filterBarHtml;
+
+// Initialize autocomplete ONCE (element never replaced)
+initializeAutocomplete();
+```
+
+**Step 3: Update Only Results Container**
+```javascript
+function fetchObservations() {
+  // ...
+  
+  // Only update results, NOT filters
+  resultsContainer.innerHTML = controlsHtml + observationsHtml;
+  
+  // Re-attach event handlers for NEW elements (pagination, etc.)
+  attachPaginationHandlers();
+  attachViewToggleHandlers();
+}
+```
+
+**Step 4: Update Chip Management**
+```javascript
+// Chips are in persistent container, but need dynamic updates
+function updateFilterChips() {
+  const chipsContainer = document.getElementById('filter-chips-container');
+  chipsContainer.innerHTML = generateChipsHtml();
+  attachChipRemoveHandlers();
+}
+```
+
+### Learnings to Document
+
+**What We Learned (the Hard Way)**:
+
+1. **innerHTML Destroys Everything**
+   - Using `innerHTML =` destroys all child elements
+   - Event listeners are NOT preserved
+   - New elements with same ID are NOT the same objects
+
+2. **Event Listener Lifecycle**
+   - Listeners attached to elements, not IDs
+   - When element destroyed, listeners destroyed
+   - Must re-attach or use delegation
+
+3. **DOM Persistence Requirements**
+   - Elements with listeners must never be replaced
+   - Use separate containers for static vs dynamic content
+   - Static: filter bar, search input, DNA checkbox
+   - Dynamic: observation results, pagination controls
+
+4. **Autocomplete Architecture**
+   - Initialize once after cache loads ✅
+   - Never re-initialize (expensive, defeats caching) ✅
+   - Ensure target element persists ❌ FAILED HERE
+
+5. **Testing Gap**
+   - Unit tests don't catch DOM persistence bugs
+   - Need integration tests with real browser
+   - Manual testing caught this regression
+
+### Code Locations
+
+**Files to Modify**:
+- `assets/js/main.js:68-533` - `fetchObservations()` function
+- `assets/js/main.js:766-928` - `initializeAutocomplete()` function
+- `assets/js/main.js:145-230` - HTML generation (split into filter/results)
+
+**Tests to Add**:
+- Integration test: Select multiple filters without page reload
+- Integration test: Verify dropdown appears on second search
+- Integration test: Verify event listeners persist
+
+### Commit Strategy
+
+**Commit 1**: Refactor HTML generation into separate containers
+```
+Refactor: Split filter bar and results into separate containers
+
+- Create persistent filter bar container
+- Create re-renderable results container
+- Move search input to persistent container
+- Prepare for autocomplete persistence fix
+```
+
+**Commit 2**: Fix autocomplete persistence
+```
+Fix: Dropdown persists across filter selections
+
+- Initialize autocomplete on persistent element
+- Only re-render results container, not filters
+- Event listeners preserved across renders
+- Fixes regression from commit ab524a9
+
+Closes: TODO-BUG-002 (EXTRA BORKED status)
+```
+
+**Commit 3**: Add integration tests
+```
+Test: Add dropdown persistence integration tests
+
+- Test multiple filter selections
+- Test dropdown displays on second search
+- Test event listener persistence
+```
+
+### Success Criteria
+
+- [ ] Dropdown displays on every search (not just first)
+- [ ] Multiple filters can be selected without page reload
+- [ ] Event listeners persist across renders
+- [ ] No browser console errors
+- [ ] All existing tests still pass
+- [ ] New integration tests pass
+- [ ] Autocomplete caching still works (no API reload)
+- [ ] IN clause query construction still works
+
+### Priority
+
+**CRITICAL** - User cannot use the filter system without page reload after each selection. This makes the plugin nearly unusable for multi-filter scenarios.
+
+**Estimated Effort**: 2-3 hours
+- 1 hour: Refactor HTML generation
+- 30 min: Fix autocomplete persistence
+- 30 min: Testing
+- 30 min: Documentation
+
+**Risk**: Low - Clean refactoring, well-understood problem
+
+---
+
+## Summary of All Fixes
+
+### Fix 1: Dropdown Broken (Original) ✅ FIXED
+- **Commit**: Multiple commits during initial implementation
+- **Fix**: Unified normalization, IN clause queries
+- **Status**: Working
+
+### Fix 2: Autocomplete Reload on Selection ✅ FIXED
+- **Commit**: ab524a9
+- **Fix**: Initialize once, use cached data
+- **Status**: Working
+- **Side Effect**: Introduced regression below
+
+### Fix 3: Dropdown Won't Display Again 🔴 NEW REGRESSION
+- **Caused By**: Commit ab524a9 (autocomplete caching)
+- **Root Cause**: `innerHTML` replaces search input, loses listeners
+- **Fix**: Move search input to persistent container
+- **Status**: PENDING
+- **Priority**: CRITICAL
+
+---
+
+**Next Action**: Implement Option A (persistent containers) to fix dropdown display regression

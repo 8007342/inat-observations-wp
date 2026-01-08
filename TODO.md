@@ -1,367 +1,363 @@
 # TODO - iNaturalist Observations WordPress Plugin
 
-**Last Updated**: 2026-01-06
-**Current State**: ⏸️ **CHECKPOINT - Awaiting Docker Setup on Host**
+**Last Updated**: 2026-01-07
+**Current State**: 🚨 **DROPDOWN REGRESSION - Won't Display After First Selection**
 
 ---
 
-## 🎯 Current Checkpoint
+## 🎯 Quick Restart Point
 
-### ✅ Completed Today
+### Current Issue: Dropdown Display Regression
 
-1. **inat.sh Bootstrap Script**
-   - Created `inat.sh` (entry point for development)
-   - Auto-creates "inat-observations" toolbox
-   - Installs Docker CLI, PHP, Composer, WP-CLI, MySQL client
-   - Fixed SELinux permissions (`:Z` volume flags)
-   - Updated `docker-compose.yml` for Silverblue compatibility
+**Symptom**: After selecting an item from the autocomplete dropdown once, the dropdown won't display again on subsequent searches.
 
-2. **Admin Settings Page**
-   - Complete WordPress settings page implementation
-   - User ID and Project ID inputs (at least one required)
-   - Pre-seeded with San Diego Mycological Society project (`sdmyco`)
-   - Manual "Refresh Now" button (AJAX)
-   - Status display (last refresh timestamp, observation count)
-   - File: `includes/admin.php` (224 lines, complete)
+**Status**: Tracked in `TODO-BUG-002-dropdown-selector-borked.md` as **EXTRA BORKED**
 
-3. **WP-Cron Refresh Job**
-   - Fetches observations from iNaturalist API
-   - Stores in database
-   - Updates last refresh stats
-   - File: `includes/init.php:33-69`
+**What Works**:
+- ✅ Autocomplete loads once (no reload on selection) - fixed in commit ab524a9
+- ✅ Array filters use IN clause - fixed in commit 3f0aca3
+- ✅ Selected items add chips to filter bar
+- ✅ Filter queries execute correctly
+- ✅ All 61 unit tests passing
 
-4. **API Integration Updates**
-   - Supports both `user_id` and `project_id` parameters
-   - Flexible query building
-   - File: `includes/api.php:11-39`
+**What's Broken**:
+- ❌ Dropdown disappears after first selection and won't show again
+- ❌ User can't select additional filters without page reload
 
-5. **Documentation**
-   - `TODO-001-filter-dna-observations.md` - DNA research plan
-   - `TODO-002-phase-1-implementation.md` - Implementation roadmap
-   - `TODO-003-xss-investigation.md` - Security research
-   - `TODO-004-inat-sh.md` - Script troubleshooting
-   - `WORDPRESS-PLUGIN.md` - Complete architecture
-   - `IMPLEMENTATION-SUMMARY.md` - Testing guide
-   - `SETUP-HOST.md` - Docker host setup instructions
+**Next Steps**:
+1. Read `TODO-BUG-002-dropdown-selector-borked.md` for detailed analysis
+2. Browser test at http://localhost:8080 to confirm symptoms
+3. Check browser console for JavaScript errors
+4. Fix dropdown persistence issue
+5. Test DNA filter with debug logging (TODO-003)
 
 ---
 
-## 🔴 Blocker: Docker Setup on Host Required
+## ✅ Recently Completed (2026-01-07)
 
-### Issue
-Script crashes because Docker daemon not running on host.
+### 1. Query Construction Fix (commit 3f0aca3)
+- **Fixed**: Species/location filters now use SQL `IN` clause instead of OR conditions
+- **Before**: `WHERE (species = 'A' OR species = 'B')`
+- **After**: `WHERE species IN ('A', 'B')`
+- **File**: `includes/rest.php`
 
-### What You Need to Do (After Reboot)
+### 2. Autocomplete Caching Fix (commit ab524a9)
+- **Fixed**: Autocomplete API no longer reloads on every filter selection
+- **Implementation**: Moved autocomplete setup to `initializeAutocomplete()`, runs once after cache loaded
+- **File**: `assets/js/main.js`
 
-**Option 1: Full Setup (Recommended)**
+### 3. Comprehensive Security Audit (commit 1ef1f6e)
+- **Completed**: Full dependency analysis and security review
+- **Finding**: Zero JavaScript dependencies (exceptional security posture)
+- **Rating**: EXCELLENT - no critical or high risks
+- **File**: `TODO-AUDIT.md`
+
+### 4. Debug Logging for DNA Filter (commit 7370370)
+- **Added**: Verbose query logging to WordPress console
+- **Location**: DNA filter config, query execution, count query
+- **Status**: Ready for browser testing
+- **File**: `includes/rest.php` (lines 168-280)
+
+---
+
+## 🐛 Active Bugs
+
+### Priority 1: Dropdown Display Regression
+**File**: `TODO-BUG-002-dropdown-selector-borked.md`
+**Status**: 🚨 CRITICAL - EXTRA BORKED
+**Symptom**: Dropdown won't display after first selection
+**Impact**: Can't select multiple filters without page reload
+
+### Priority 2: DNA Filter Not Working
+**File**: `TODO-003-debug-statements.md`
+**Status**: ⏳ DEBUGGING - awaiting browser test
+**Symptom**: `has_dna=1` returns all observations instead of filtering
+**Debug**: Verbose logging added, needs browser testing to analyze
+
+---
+
+## 📊 Test Status
+
+**Unit Tests**: ✅ 61/61 passing (100%)
+- ✅ REST endpoint tests (pagination, filters, sorting)
+- ✅ Autocomplete tests (caching, normalization)
+- ✅ Database schema tests (migrations, indexes)
+- ✅ SQL injection prevention tests
+- ✅ XSS prevention tests
+
+**Integration Tests**: ⏳ Pending
+- ⏳ Browser testing for dropdown regression
+- ⏳ DNA filter with real data
+- ⏳ Autocomplete caching verification
+
+**Coverage**: 📈 High (estimated 85%+)
+- Strong backend coverage (REST, DB, autocomplete)
+- Good security coverage (SQL injection, XSS, CSRF)
+- Missing: Some frontend edge cases
+
+---
+
+## 🎯 Next Session Tasks
+
+### Immediate (Start Here)
+
+1. **Fix Dropdown Display Regression** 🚨
+   - Read `TODO-BUG-002-dropdown-selector-borked.md` for context
+   - Browser test at http://localhost:8080
+   - Check if dropdown wrapper/container persists after `fetchObservations()`
+   - Likely issue: `initializeAutocomplete()` only runs once, but `fetchObservations()` rebuilds HTML
+   - Suspected root cause: Search input element replaced on render, event listeners lost
+
+2. **Test DNA Filter with Logging**
+   - Visit http://localhost:8080
+   - Check DNA checkbox
+   - Open browser console (F12)
+   - Check WordPress debug.log for verbose output
+   - Analyze query execution logs
+
+3. **Increase Test Coverage (Low Hanging Fruit)**
+   - Add tests for edge cases (empty arrays, null values)
+   - Add tests for cache invalidation
+   - Add tests for error handling paths
+
+### After Fixes
+
+4. **Remove Debug Logging** (TODO-003 cleanup)
+   - Remove verbose error_log() statements from rest.php
+   - Keep only essential logging
+
+5. **Browser Testing Checklist**
+   - [ ] Autocomplete loads once (no reload on selection)
+   - [ ] Dropdown persists across multiple selections
+   - [ ] Multiple species filters work
+   - [ ] Multiple location filters work
+   - [ ] Combined filters work (species + location + DNA)
+   - [ ] Filter chips display correctly
+   - [ ] Removing chips works
+   - [ ] Pagination works with filters
+
+6. **Performance Testing**
+   - [ ] Large datasets (1000+ observations)
+   - [ ] Cache hit rates
+   - [ ] Query execution time
+
+---
+
+## 📝 Implementation Learnings (Read Before Fixing!)
+
+### Critical Insights from TODO-BUG-002
+
+1. **Autocomplete Setup Location**
+   - ❌ DON'T: Put autocomplete setup inside `fetchObservations()`
+   - ✅ DO: Initialize once after cache loads, outside render cycle
+   - **Why**: `fetchObservations()` runs on every filter change, causes re-initialization
+
+2. **DOM Element Persistence**
+   - ❌ DON'T: Replace parent elements that have event listeners
+   - ✅ DO: Update `innerHTML` of container, preserve wrapper elements
+   - **Why**: Event listeners are lost when parent elements are replaced
+
+3. **Cache-First Architecture**
+   - ❌ DON'T: Fetch autocomplete data on demand
+   - ✅ DO: Load all autocomplete data once on page load
+   - **Why**: Reduces network requests, improves UX
+
+4. **Query Construction**
+   - ❌ DON'T: Use `OR` conditions for array filters
+   - ✅ DO: Use `IN` clause with placeholders
+   - **Why**: Better performance, cleaner SQL, proper parameterization
+
+5. **Test Coverage**
+   - ❌ DON'T: Skip tests because "it's frontend code"
+   - ✅ DO: Mock WordPress environment, test all code paths
+   - **Why**: Caught 3 critical bugs during development
+
+### New Regression Pattern (Dropdown Won't Display Again)
+
+**Hypothesis**: The search input element is being replaced when `fetchObservations()` rebuilds the HTML, which loses the autocomplete event listeners.
+
+**Investigation Path**:
+1. Check if `initializeAutocomplete()` finds the input element
+2. Check if the input element ID changes between renders
+3. Check if the wrapper element persists
+4. Check browser console for "element not found" errors
+5. Verify event listeners are still attached after render
+
+**Potential Fixes**:
+- Option A: Don't replace the search input element in `fetchObservations()`
+- Option B: Re-initialize autocomplete after each render (defeats caching purpose)
+- Option C: Move search input outside of re-rendered container
+
+---
+
+## 🗂️ File Structure
+
+### Plugin Core
+```
+wp-content/plugins/inat-observations-wp/
+├── inat-observations-wp.php       # Main plugin file
+├── includes/
+│   ├── init.php                   # Plugin initialization, WP-Cron
+│   ├── admin.php                  # Admin settings page
+│   ├── api.php                    # iNaturalist API integration
+│   ├── db-schema.php              # Database tables, migrations
+│   ├── rest.php                   # REST API endpoint (⚠️ has debug logging)
+│   ├── shortcode.php              # WordPress shortcode handler
+│   └── autocomplete.php           # Autocomplete data generation
+├── assets/
+│   ├── js/main.js                 # Frontend JavaScript (⚠️ has dropdown bug)
+│   └── css/main.css               # Styles
+└── tests/
+    ├── phpunit.xml                # PHPUnit configuration
+    ├── unit/                      # Unit tests (61 tests)
+    │   ├── RestTest.php
+    │   ├── RestEnhancedTest.php
+    │   ├── AutocompleteTest.php
+    │   ├── DbSchemaTest.php
+    │   └── ArrayFilterTest.php    # Placeholder for integration tests
+    └── fixtures/                  # Test data
+```
+
+### Documentation
+```
+├── TODO.md                                  # ⭐ This file (quick restart)
+├── TODO-BUG-002-dropdown-selector-borked.md # 🚨 Dropdown regression details
+├── TODO-BUG-004-array-filter-query-construction.md # ✅ Fixed (IN clause)
+├── TODO-003-debug-statements.md             # DNA filter debugging
+├── TODO-AUDIT.md                            # Security audit (complete)
+├── TODO-QA-next-steps.md                    # QA testing plan
+├── WORDPRESS-PLUGIN.md                      # Architecture documentation
+└── README.md                                # Project overview
+```
+
+---
+
+## 🚀 Docker Quick Start
+
 ```bash
-# On HOST (not in toolbox)
-sudo rpm-ostree install docker docker-compose
-sudo systemctl reboot
+# Start development environment
+docker-compose up -d
 
-# After reboot
-sudo systemctl enable --now docker
-sudo usermod -aG docker $USER
-newgrp docker
+# View logs
+docker logs -f wordpress
+docker logs -f mysql
 
-# Verify
-docker ps
+# Stop environment
+docker-compose down
+
+# Clean reset (DESTRUCTIVE)
+docker-compose down -v
 ```
 
-**Option 2: If Docker Already Installed**
-```bash
-# On HOST
-sudo systemctl start docker
-sudo systemctl enable docker
-sudo usermod -aG docker $USER
-newgrp docker
-
-# Verify
-docker ps
-```
-
-**See**: `SETUP-HOST.md` for detailed instructions
+**Access**:
+- WordPress: http://localhost:8080
+- Admin: http://localhost:8080/wp-admin (admin/admin)
 
 ---
 
-## ⏭️ Next Steps (After Docker Setup)
-
-### 1. Test inat.sh Script
+## 🧪 Testing Quick Start
 
 ```bash
-cd ~/src/inat-observations-wp
-./inat.sh
-```
+# Run all tests
+composer test
 
-**Expected**:
-- Toolbox "inat-observations" detected or created
-- Dependencies installed
-- WordPress + MySQL start
-- Logs stream to terminal
-- Available at http://localhost:8080
+# Run specific test file
+vendor/bin/phpunit tests/unit/RestTest.php
 
-**If Issues**: Check `TODO-004-inat-sh.md` troubleshooting section
+# Run with coverage
+composer test:coverage
 
----
+# SQL injection checks
+bash tests/security/check-sql-injection.sh
 
-### 2. Activate Plugin in WordPress
-
-1. Visit http://localhost:8080/wp-admin
-2. Complete WordPress setup (first time)
-   - Site title: "iNat Observations Dev"
-   - Username: admin
-   - Password: admin
-3. Go to Plugins → Installed Plugins
-4. Activate "inat-observations-wp"
-
-**Expected**:
-- Database table `wp_inat_observations` created
-- WP-Cron job scheduled (daily refresh)
-
----
-
-### 3. Test Admin Settings Page
-
-1. Settings → iNat Observations
-2. Verify **Project ID** pre-filled with `sdmyco`
-3. Click "Refresh Now" button
-
-**Expected**:
-- AJAX request succeeds
-- Success message: "Refresh completed successfully. Fetched N observations."
-- Page reloads after 2 seconds
-- Status shows updated timestamp and count
-
----
-
-### 4. Verify Database
-
-```bash
-# From another terminal
-toolbox enter inat-observations
-docker exec -it mysql mysql -u wordpress -pwordpress wordpress
-
-# Inside MySQL
-SELECT COUNT(*) FROM wp_inat_observations;
-SELECT id, species_guess, place_guess FROM wp_inat_observations LIMIT 5;
-```
-
-**Expected**:
-- Observations from San Diego Mycological Society
-- Fields populated: id, uuid, observed_on, species_guess, place_guess, metadata
-
----
-
-## 📋 Phase 1 Status
-
-### ✅ Completed (Tasks 1, 4, 6, 7)
-- [x] Admin settings page
-- [x] WP-Cron refresh job implementation
-- [x] API integration updates (user_id + project_id)
-- [x] inat.sh bootstrap script
-
-### ⏳ Remaining for Phase 1 Complete
-- [ ] **Task 2**: Database schema migration
-  - Add DNA columns (`has_dna`, `dna_type`)
-  - Add image columns (`image_url`, `thumbnail_url`)
-  - Add user/taxon columns
-  - Add indexes
-  - File: `includes/db-schema.php`
-
-- [ ] **Task 3**: DNA metadata parsing
-  - Implement `inat_obs_parse_dna_metadata()` function
-  - Research DNA field IDs (TODO-001)
-  - Pattern matching fallback
-  - File: `includes/api.php` (new function)
-
-- [ ] **Task 5**: Enhanced data storage
-  - Update `inat_obs_store_items()` to parse all fields
-  - Call DNA parsing function
-  - Extract images, taxon, user info
-  - File: `includes/db-schema.php:37-60` (update)
-
----
-
-## 🗂️ Project Structure
-
-```
-inat-observations-wp/
-├── inat.sh                    # ✅ Entry point (NEW)
-├── docker-compose.yml         # ✅ Updated for Silverblue
-├── WORDPRESS-PLUGIN.md        # ✅ Architecture
-├── TODO.md                    # ✅ This file (NEW)
-├── TODO-001-*.md              # ✅ DNA research
-├── TODO-002-*.md              # ✅ Phase 1 plan
-├── TODO-003-*.md              # ✅ XSS investigation
-├── TODO-004-*.md              # ✅ inat.sh docs
-├── IMPLEMENTATION-SUMMARY.md  # ✅ Testing guide
-├── SETUP-HOST.md              # ✅ Docker setup (NEW)
-├── wp-content/plugins/inat-observations-wp/
-│   ├── inat-observations-wp.php
-│   ├── includes/
-│   │   ├── init.php           # ✅ Updated (WP-Cron)
-│   │   ├── admin.php          # ✅ Complete rewrite
-│   │   ├── api.php            # ✅ Updated (user_id + project_id)
-│   │   ├── db-schema.php      # ⏳ Needs migration
-│   │   ├── shortcode.php      # ⏳ Needs Phase 2
-│   │   └── rest.php
-│   └── assets/
-│       ├── js/main.js         # ⏳ Needs Phase 2
-│       └── css/main.css       # ⏳ Needs Phase 5
-└── docker-volumes/            # Created by inat.sh
-    ├── mysql/
-    └── wordpress/
+# Pre-commit checks (auto-run on commit)
+bash .git/hooks/pre-commit
 ```
 
 ---
 
-## 🎯 Roadmap (6 Phases)
+## 📈 Project Stats
 
-### Phase 1: Admin Settings & Data Pipeline ⏳ (75% complete)
-- [x] Admin page
-- [x] WP-Cron job
-- [x] API integration
-- [ ] Database migration
-- [ ] DNA parsing
-- [ ] Enhanced storage
-
-### Phase 2: Basic Frontend Display (Not Started)
-- [ ] Grid view
-- [ ] List view
-- [ ] Image thumbnails
-- [ ] Lazy loading
-
-### Phase 3: Filtering & DNA Detection (Not Started)
-- [ ] Filter bar
-- [ ] DNA badge
-- [ ] Autocomplete
-
-### Phase 4: Details View (Not Started)
-- [ ] Full-screen modal
-- [ ] Full metadata display
-
-### Phase 5: Material Design Polish (Not Started)
-- [ ] Material Design 3
-- [ ] Responsive design
-
-### Phase 6: Advanced Features (Not Started)
-- [ ] Export to CSV
-- [ ] User preferences
-- [ ] Custom fields
-
-**See**: `WORDPRESS-PLUGIN.md` for complete roadmap
+- **Lines of Code**: ~5,000 (PHP + JavaScript)
+- **Test Coverage**: 85%+ estimated
+- **Unit Tests**: 61 passing
+- **Dependencies**: 7 dev (Composer), 0 runtime, 0 JavaScript
+- **Security Rating**: EXCELLENT (zero critical/high risks)
+- **Last Commit**: 1ef1f6e (Security audit)
+- **Branch**: main
+- **Origin**: github.com:8007342/inat-observations-wp.git
 
 ---
 
-## 🐛 Known Issues
+## 🔍 Recent Commits
 
-### 1. Docker Daemon Not Running (CURRENT)
-**Status**: Blocking development
-**Fix**: See "Blocker" section above
-**Doc**: `SETUP-HOST.md`
-
-### 2. MySQL Permission Errors (Potential)
-**Symptom**: "Cannot change permissions of the file"
-**Cause**: SELinux contexts
-**Fix**: `:Z` flags in docker-compose.yml (already applied)
-**Doc**: `TODO-004-inat-sh.md`
-
-### 3. Database Missing DNA/Image Columns (Expected)
-**Status**: Pending implementation
-**Impact**: Can't filter by DNA or display images yet
-**Fix**: Implement Task 2 (database migration)
-**Doc**: `TODO-002-phase-1-implementation.md`
+```
+1ef1f6e - Add security audit ADDENDUM with dependency analysis
+bc70bc4 - Update TODO-BUG-004: Mark as fixed with implementation summary
+ab524a9 - TODO-BUG-004: Fix autocomplete reload on selection
+3f0aca3 - TODO-BUG-004: Fix query construction to use IN clause for arrays
+7370370 - TODO-003: Add verbose debug logging for DNA filter
+```
 
 ---
 
-## 🔍 Files Modified Today
+## 🎯 Session Goals
 
-### Created
-- `inat.sh`
-- `TODO.md` (this file)
-- `TODO-004-inat-sh.md`
-- `IMPLEMENTATION-SUMMARY.md`
-- `SETUP-HOST.md`
+**Primary Goal**: Fix dropdown display regression so users can select multiple filters
 
-### Modified
-- `docker-compose.yml` - SELinux `:Z` flags
-- `.gitignore` - Exclude `docker-volumes/`
-- `includes/admin.php` - Complete settings page
-- `includes/init.php` - WP-Cron implementation
-- `includes/api.php` - user_id + project_id support
+**Secondary Goals**:
+1. Test DNA filter with browser
+2. Increase test coverage (low hanging fruit)
+3. Clean up debug logging after DNA filter works
 
-### Read-Only (Reference)
-- `WORDPRESS-PLUGIN.md`
-- `TODO-001-filter-dna-observations.md`
-- `TODO-002-phase-1-implementation.md`
-- `TODO-003-xss-investigation.md`
+**Success Criteria**:
+- [ ] Dropdown displays on every search (not just first)
+- [ ] Multiple filters can be selected without page reload
+- [ ] DNA filter works correctly with real data
+- [ ] All tests still passing
+- [ ] Code committed and pushed
 
 ---
 
 ## 💡 Quick Commands
 
 ```bash
-# Start development
-./inat.sh
+# Check what's uncommitted
+git status
 
-# Stop containers
-./inat.sh --stop
+# Run tests
+composer test
 
-# Clean everything (DESTRUCTIVE)
-./inat.sh --clean
+# Start browser testing
+docker-compose up -d
+# → Visit http://localhost:8080
 
-# Check Docker on host (outside toolbox)
-sudo systemctl status docker
+# Check WordPress logs
+docker logs wordpress | grep "DNA FILTER"
+docker logs wordpress | grep "EXECUTING QUERY"
 
-# View logs
-docker logs -f wordpress
-docker logs -f mysql
-
-# Access MySQL
+# Check database
 docker exec -it mysql mysql -u wordpress -pwordpress wordpress
+SELECT COUNT(*) FROM wp_inat_observations WHERE id IN (SELECT observation_id FROM wp_inat_observation_fields WHERE name LIKE 'DNA%');
 
-# Enter toolbox manually
-toolbox enter inat-observations
+# Commit workflow
+git add .
+git commit -m "Fix: Dropdown persistence across filter selections"
+git push origin main
 ```
 
 ---
 
-## 📚 Documentation Reference
-
-| File | Purpose |
-|------|---------|
-| `WORDPRESS-PLUGIN.md` | Complete architecture and 6-phase roadmap |
-| `TODO-002-phase-1-implementation.md` | Phase 1 detailed plan |
-| `IMPLEMENTATION-SUMMARY.md` | Testing instructions |
-| `SETUP-HOST.md` | Docker setup on Silverblue host |
-| `TODO-004-inat-sh.md` | inat.sh troubleshooting |
+**Current Status**: 🚨 Dropdown regression blocking multiple filter selection
+**Next Action**: Read TODO-BUG-002, browser test, fix dropdown persistence
+**Owner**: Claude Code Session
+**Priority**: CRITICAL - User experience severely degraded
 
 ---
 
-## 🎉 What's Working
-
-- ✅ Bootstrap script (inat.sh) creates toolbox
-- ✅ Docker Compose configuration (Silverblue-compatible)
-- ✅ Admin settings page (fully functional)
-- ✅ WP-Cron job (fetches and stores observations)
-- ✅ API integration (supports user_id and project_id)
-- ✅ San Diego Mycological Society pre-seeded
-
-## 🚧 What's Next
-
-1. **Immediate**: Set up Docker on host, test inat.sh
-2. **Phase 1**: Database migration, DNA parsing
-3. **Phase 2**: Frontend grid/list views
-
----
-
-**Status**: 🔴 Blocked on Docker host setup
-**Next Action**: Follow `SETUP-HOST.md` instructions, then run `./inat.sh`
-**Owner**: Full-Stack Developer
-
----
-
-**Notes**:
-- Project ID `sdmyco` is San Diego Mycological Society (original inspiration)
-- Plugin architecture documented in `WORDPRESS-PLUGIN.md`
-- All security best practices followed (nonce, sanitization, HTTPS enforcement)
+**Remember**:
+1. Autocomplete caching is working - don't break it!
+2. IN clause query construction is working - don't break it!
+3. The regression is likely in the DOM manipulation, not the logic
+4. Check browser console first before diving into code
+5. All learnings are documented in TODO-BUG-002 to avoid repeating mistakes
